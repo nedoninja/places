@@ -17,15 +17,20 @@ function addCard(columnId) {
     });
     card.appendChild(colorPicker);
 
-    const cardText = document.createElement('span');
-    cardText.textContent = 'New Card';
-    cardText.addEventListener('click', function() {
-        const newText = prompt('Enter new card name:', cardText.textContent);
-        if (newText) {
-            cardText.textContent = newText;
-        }
-    });
-    card.appendChild(cardText);
+    // Card title input
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = 'Title';
+    titleInput.style.width = '100%';
+    titleInput.style.marginBottom = '5px';
+    card.appendChild(titleInput);
+
+    // Card description input
+    const descriptionInput = document.createElement('textarea');
+    descriptionInput.placeholder = 'Description';
+    descriptionInput.style.width = '100%';
+    descriptionInput.style.height = '50px';
+    card.appendChild(descriptionInput);
 
     const deleteButton = document.createElement('button');
     deleteButton.classList.add('delete-button');
