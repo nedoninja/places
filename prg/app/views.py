@@ -7,8 +7,6 @@ from .models import Profile, Service
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
-
-
 def is_executor(user):
     return user.profile.role == 'executor'
 
