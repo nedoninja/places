@@ -356,3 +356,7 @@ def my_feedbacks(request):
     else:
         messages.error(request, "У вас нет прав для просмотра этой страницы.")
         return redirect('home')
+
+@login_required
+def chat(request):
+    return render(request, 'chat.html')

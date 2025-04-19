@@ -62,17 +62,13 @@
 
         <section class="kanban-section animate-slide-up">
             <div class="container">
-                <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <h2>TODO</h2>
-                    <button onclick="addCard('todo')">Add Card</button>
+                <div class="column" id="planned" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <h2>Срочные задачи</h2>
+                    <button onclick="addCard('planned')">Add Card</button>
                 </div>
-                <div class="column" id="inprogress" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <h2>In Progress</h2>
-                    <button onclick="addCard('inprogress')">Add Card</button>
-                </div>
-                <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <h2>Done</h2>
-                    <button onclick="addCard('done')">Add Card</button>
+                <div class="column" id="completed" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <h2>Не срочные задачи</h2>
+                    <button onclick="addCard('completed')">Add Card</button>
                 </div>
             </div>
         </section>

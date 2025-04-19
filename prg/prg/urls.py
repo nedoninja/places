@@ -34,6 +34,7 @@ urlpatterns = [
     path('create-service/', views.create_service, name='create_service'),
     path('service/<int:service_id>/', views.service_detail, name='service_detail'),
     path('my_feedbacks/', views.my_feedbacks, name='my_feedbacks'),
+    path('chat/', views.chat, name='chat'),
 ]
 
 
