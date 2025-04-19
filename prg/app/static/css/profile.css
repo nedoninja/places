@@ -51,13 +51,13 @@ body {
     padding: 8px 16px;
     border-radius: 20px;
     transition: all 0.3s ease;
-    background: blue;
+    background: white;
     border: 1px solid var(--primary-color);
 }
 
 .home-link:hover, .logout-btn:hover {
     background: var(--primary-color);
-    color: blue;
+    color: white;
     transform: translateY(-2px);
 }
 
