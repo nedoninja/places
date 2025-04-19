@@ -132,9 +132,9 @@ def create_service(request):
 @login_required
 def service_detail(request, service_id):
     service = get_object_or_404(Service, pk=service_id)
-    user_profile = request.user.profile  # Get the user's profile
+    user_profile = request.user.profile  
     is_customer = user_profile.role == 'customer'
-    feedback_submitted = False  # Flag to check if feedback has been submitted
+    feedback_submitted = False 
 
     if request.method == 'POST':
         if is_customer:
@@ -142,20 +142,20 @@ def service_detail(request, service_id):
             if feedback_text:
                 Feedback.objects.create(service=service, author=request.user, text=feedback_text)
                 messages.success(request, 'Отзыв успешно отправлен!')
-                feedback_submitted = True #Set flag true after successfully submitting the feedback
-                return redirect('service_detail', service_id=service_id) # Redirect to prevent resubmission on refresh
+                feedback_submitted = True 
+                return redirect('service_detail', service_id=service_id) 
 
     return render(request, 'service_detail.html', {
         'service': service,
         'is_customer': is_customer,
-        'feedback_submitted': feedback_submitted # Pass flag to the template
+        'feedback_submitted': feedback_submitted 
     })
 
 
 @login_required
 def my_feedbacks(request):
     if request.user.profile.role == 'executor':
-        feedbacks = Feedback.objects.filter(service__author=request.user)  # Get feedbacks for services created by the executor
+        feedbacks = Feedback.objects.filter(service__author=request.user)  
         return render(request, 'my_feedbacks.html', {'feedbacks': feedbacks})
     else:
         messages.error(request, "У вас нет прав для просмотра этой страницы.")
