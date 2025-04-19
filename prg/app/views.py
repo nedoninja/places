@@ -1,12 +1,16 @@
-from django.http import HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from .models import Profile
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .models import Profile, Service
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+
+
+
+def is_executor(user):
+    return user.profile.role == 'executor'
 
 def register(request):
     if request.method == 'POST':
@@ -89,7 +93,8 @@ def user_logout(request):
     return redirect('home')
 
 def index(request):
-    return render(request, 'index.html')
+    services = Service.objects.all().order_by('-created_at')
+    return render(request, 'index.html', {'services': services})
 
 @login_required
 def profile(request):
@@ -105,3 +110,23 @@ def profile(request):
         'date_joined': user.date_joined,
     }
     return render(request, 'profile.html', context)
+
+def service_detail(request, service_id):
+    service = get_object_or_404(Service, pk=service_id)
+    return render(request, 'service_detail.html', {'service': service})
+
+@login_required
+@user_passes_test(is_executor)
+def create_service(request):
+    if request.method == 'POST':
+        service = Service(
+            author=request.user,
+            title=request.POST['title'],
+            description=request.POST['description'],
+            price=request.POST['price'],
+            image=request.FILES['image']
+        )
+        service.save()
+        return redirect('home')
+    return render(request, 'create_service.html')
+

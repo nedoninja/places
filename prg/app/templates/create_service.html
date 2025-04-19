@@ -1,0 +1,9 @@
+<h2>Создать услугу</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <p>Название: <input type="text" name="title" required></p>
+    <p>Описание: <textarea name="description" required></textarea></p>
+    <p>Цена: <input type="number" name="price" step="0.01" required></p>
+    <p>Изображение: <input type="file" name="image" accept="image/*" required></p>
+    <button type="submit">Создать</button>
+</form>
