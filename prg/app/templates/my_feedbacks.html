@@ -1,0 +1,17 @@
+
+<h1>Мои Отзывы</h1>
+
+{% if feedbacks %}
+    <ul>
+        {% for feedback in feedbacks %}
+            <li>
+                <strong>Сервис:</strong> {{ feedback.service.title }}<br>
+                <strong>Автор:</strong> {{ feedback.author.username }}<br>
+                <strong>Отзыв:</strong> {{ feedback.text }}<br>
+                <strong>Дата:</strong> {{ feedback.created_at }}
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>Нет отзывов для ваших сервисов.</p>
+{% endif %}
