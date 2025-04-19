@@ -6,7 +6,6 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import Profile, Service, Feedback
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
@@ -15,8 +14,6 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import Profile, Service
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-
-
 import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
@@ -30,6 +27,7 @@ from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
+from django.http import HttpResponse
 from .models import Profile
 
 def is_executor(user):
@@ -113,11 +111,10 @@ def register(request):
             })
             send_mail(subject, message, None, [email], fail_silently=False)
 
-            # Redirect to страницу проверки почты
             return redirect('check_mail')
 
         except Exception as e:
-            logger.exception("Ошибка при создании пользователя:")
+            #logger.exception("Ошибка при создании пользователя:")
             messages.error(request, f'Не удалось зарегистрировать: {e}')
             return render(request, 'register.html', {
                 'username': username,
@@ -135,7 +132,6 @@ def register(request):
 
 
 def check_mail(request):
-    # просто рендерим страницу с инструкцией
     return render(request, 'check_your_gmail.html')
 def activate(request, uidb64, token):
     try:
