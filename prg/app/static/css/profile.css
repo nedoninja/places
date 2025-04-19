@@ -26,7 +26,9 @@ body {
     align-items: center;
     padding: 20px 40px;
     background: white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
+    position: relative;
+    z-index: 10;
 }
 
 .logo {
@@ -44,20 +46,19 @@ body {
 }
 
 .home-link, .logout-btn {
-.home-link, .logout-btn {
-    color: white;
+    color: var(--primary-color);
     text-decoration: none;
     padding: 8px 16px;
     border-radius: 20px;
     transition: all 0.3s ease;
-    background: var(--primary-color);
+    background: purple;
     border: 1px solid var(--primary-color);
 }
 
 .home-link:hover, .logout-btn:hover {
-    background: var(--secondary-color);
+    background: var(--primary-color);
+    color: purple;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(103, 58, 183, 0.3);
 }
 
 .profile-main {
@@ -310,4 +311,4 @@ button:hover {
     .column:last-child {
         border-bottom: none;
     }
-}}
+}
