@@ -1,0 +1,6 @@
+<h1>привет</h1>
+{% if user.is_authenticated %}
+    <p>привет, {{ user.username }}! <a href="/logout/">выйти</a></p>
+{% else %}
+    <p><a href="/login/">Логин</a> or <a href="/register/">регистрация</a></p>
+{% endif %}

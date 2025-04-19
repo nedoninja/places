@@ -1,0 +1,8 @@
+<h2>Register</h2>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="password" placeholder="Password" required>
+    <button type="submit">Регистрация</button>
+</form>
+<p>Есть аккаунт <a href="/login/">Логин</a></p>
