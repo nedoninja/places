@@ -1,0 +1,118 @@
+:root {
+    --primary-color: #6e8efb;
+    --secondary-color: #a777e3;
+    --text-color: #333;
+    --light-bg: #f9f9f9;
+    --card-bg: #ffffff;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--light-bg);
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+}
+
+/* Header styles from profile.css */
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    background: white;
+    box-shadow: var(--shadow);
+    position: relative;
+    z-index: 10;
+}
+
+.logo {
+    height: 40px;
+    transition: transform 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.header-actions {
+    display: flex;
+    gap: 20px;
+}
+
+.home-link, .logout-btn {
+    color: var(--primary-color);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    background: blue;
+    border: 1px solid var(--primary-color);
+}
+
+.home-link:hover, .logout-btn:hover {
+    background: var(--primary-color);
+    color: blue;
+    transform: translateY(-2px);
+}
+
+h1 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-top: 20px;
+}
+
+p {
+    text-align: center;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--secondary-color);
+}
+
+/* Styles for the service listings */
+.services-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 20px;
+}
+
+.service {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 10px;
+    box-shadow: var(--shadow);
+    width: 300px;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.service:hover {
+    transform: translateY(-5px);
+}
+
+.service img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.service h3 {
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.service p {
+    color: #666;
+}

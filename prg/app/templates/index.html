@@ -1,21 +1,47 @@
-<h1>привет</h1>
-{% if user.is_authenticated %}
-    <p>привет, {{ user.username }}! <a href="/logout/">выйти</a></p>
-    <a href="/profile/">профиль</a>
-{% else %}
-    <p><a href="/login/">Логин</a> or <a href="/register/">регистрация</a></p>
-{% endif %}
-<h1>Услуги</h1>
-{% if user.is_authenticated and user.profile.role == 'executor' %}
-    <p><a href="/create-service/">Создать услугу</a></p>
-{% endif %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Главная страница</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+</head>
+<body>
+    <header class="profile-header">
+        <img src="{% static 'images/logotype.svg' %}" alt="Study Size" class="logo">
+        <div class="header-actions">
+            <a href="/" class="home-link">На главную</a>
+            {% if user.is_authenticated %}
+                <a href="/profile/" class="home-link">Профиль</a>
+                {% if user.profile.role == 'executor' %}
+                    <a href="/create-service/" class="home-link">Создать услугу</a>
+                {% endif %}
+                <a href="/logout/" class="logout-btn">Выйти</a>
+            {% else %}
+                <a href="/login/" class="logout-btn">Войти</a>
+            {% endif %}
+        </div>
+    </header>
 
-{% for service in services %}
-<div>
-    <a href="/service/{{ service.id }}/">
-        <img src="{{ service.image.url }}" alt="{{ service.title }}" width="200">
-        <h3>{{ service.title }}</h3>
-        <p>Цена: {{ service.price }} руб.</p>
-    </a>
-</div>
-{% endfor %}
+    <main>
+        <section class="services-section">
+            <h1>Услуги</h1>
+            <div class="services-container">
+                {% for service in services %}
+                    <div class="service">
+                        <a href="/service/{{ service.id }}/">
+                            <img src="{{ service.image.url }}" alt="{{ service.title }}" width="200">
+                            <h3>{{ service.title }}</h3>
+                            <p>Цена: {{ service.price }} руб.</p>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>
