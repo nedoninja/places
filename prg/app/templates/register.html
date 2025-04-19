@@ -1,26 +1,108 @@
-<h2>Register</h2>
-<form method="post">
-    {% csrf_token %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="C:\Users\User\Desktop\e\places\prg\app\static\css\register.css">
+  </head>
+  <body>
+    <div class="item">
+      <div class="div">
+        <div class="div-2">
+          <div class="div-3"></div>
+          <div class="div-4">
+            <div class="text-wrapper">Регистрация</div>
+            <div class="div-5">
+              <div class="text-wrapper-2">Уже есть аккаунт?</div>
+              <div class="text-wrapper-3"><a href="/login/">Войти</a></div>
+            </div>
+          </div>
+          <div class="div-6">
+            <form method="post">
+              {% csrf_token %}
 
-    <input type="text" name="last_name" placeholder="Фамилия" required>
-    <input type="text" name="first_name" placeholder="Имя" required>
-    <input type="text" name="middle_name" placeholder="Отчество">
+              <div class="div-7">
+                <div class="text-wrapper-4">Фамилия</div>
+                <input type="text" name="last_name" placeholder="Введите фамилию" required class="basic-inputs">
+              </div>
 
-    <input type="text" name="username" placeholder="Логин" required>
-    <input type="email" name="email" placeholder="Email" required>
-    <input type="password" name="password" placeholder="Пароль" required>
-    <input type="password" name="password_confirm" placeholder="Повторите пароль" required>
+              <div class="div-7">
+                <div class="text-wrapper-4">Имя</div>
+                <input type="text" name="first_name" placeholder="Введите имя" required class="basic-inputs">
+              </div>
 
-    <input type="tel" name="phone" placeholder="Номер телефона" required>
-    <input type="text" name="city" placeholder="Город" required>
-    <input type="date" name="birth_date" placeholder="Дата рождения" required>
+              <div class="div-7">
+                <div class="text-wrapper-4">Отчество</div>
+                <input type="text" name="middle_name" placeholder="Введите отчество" class="basic-inputs">
+              </div>
 
-    <select name="role" required>
-        <option value="" disabled selected>Ваша роль</option>
-        <option value="customer">Заказчик</option>
-        <option value="executor">Исполнитель</option>
-    </select>
+              <div class="div-7">
+                <div class="text-wrapper-4">Логин</div>
+                <input type="text" name="username" placeholder="Введите логин" required class="basic-inputs">
+              </div>
 
-    <button type="submit">Регистрация</button>
-</form>
-<p>Есть аккаунт <a href="/login/">Логин</a></p>
+              <div class="div-9">
+                <div class="text-wrapper-4">Почта</div>
+                <input type="email" name="email" placeholder="Введите почту" required class="medium-wrapper">
+              </div>
+
+              <div class="div-7">
+                <div class="div-wrapper"><div class="text-wrapper-5">Пароль</div></div>
+                <div class="basic-inputs-2">
+                  <input type="password" name="password" placeholder="Введите пароль" required class="medium-2">
+                  <img class="img" src="img/eye-2.svg" />
+                </div>
+              </div>
+
+              <div class="div-7">
+                <div class="div-wrapper"><div class="text-wrapper-5">Повторите пароль</div></div>
+                <div class="basic-inputs-2">
+                  <input type="password" name="password_confirm" placeholder="Повторите пароль" required class="medium-2">
+                  <img class="img" src="img/eye.svg" />
+                </div>
+              </div>
+
+              <div class="div-7">
+                <div class="text-wrapper-4">Номер телефона</div>
+                <input type="tel" name="phone" placeholder="Введите номер телефона" required class="basic-inputs">
+              </div>
+
+              <div class="div-10">
+                <div class="text-wrapper-4">Город</div>
+                <input type="text" name="city" placeholder="Введите город проживания" required class="medium-wrapper">
+              </div>
+
+              <div class="div-7">
+                <div class="text-wrapper-4">Дата рождения</div>
+                <input type="date" name="birth_date" required class="basic-inputs">
+              </div>
+
+              <div class="input-groups-2">
+                <div class="medium-5">Выберите вашу роль</div>
+                <select name="role" required class="down-wrapper">
+                  <option value="" disabled selected>Ваша роль</option>
+                  <option value="customer">Заказчик</option>
+                  <option value="executor">Исполнитель</option>
+                </select>
+              </div>
+
+              <div class="checkbox">
+                <div class="checkbox-2"></div>
+                <p class="default">
+                  <span class="span">Нажимая кнопку вы соглашаетесь с нашей</span>
+                  <span class="text-wrapper-7">&nbsp;&nbsp;</span>
+                  <span class="text-wrapper-8">политикой конфиденциальности</span>
+                  <span class="text-wrapper-9">&nbsp;</span>
+                </p>
+              </div>
+
+              <button type="submit" class="button"><div class="medium-4">Зарегистрироваться</div></button>
+            </form>
+          </div>
+        </div>
+        <div class="ellipse"></div>
+        <div class="element"><img class="flash" src="img/flash.png" /></div>
+        <img class="studyhub" src="img/studyhub-2-2.svg" />
+      </div>
+    </div>
+  </body>
+</html>
