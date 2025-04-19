@@ -1,0 +1,15 @@
+{% block content %}
+<h1>Профиль пользователя</h1>
+<div class="profile-info">
+    <p><strong>ФИО:</strong> {{ user.last_name }} {{ user.first_name }} {{ profile.middle_name|default:"" }}</p>
+    <p><strong>Логин:</strong> {{ user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Телефон:</strong> {{ profile.phone }}</p>
+    <p><strong>Город:</strong> {{ profile.city }}</p>
+    <p><strong>Дата рождения:</strong> {{ profile.birth_date|date:"d.m.Y" }}</p>
+    <p><strong>Роль:</strong> 
+        {% if profile.role == 'customer' %}Заказчик{% else %}Исполнитель{% endif %}
+    </p>
+</div>
+<a href="/">На главную</a> | <a href="/logout/">Выйти</a>
+{% endblock %}
