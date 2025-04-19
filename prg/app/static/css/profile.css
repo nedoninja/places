@@ -26,9 +26,7 @@ body {
     align-items: center;
     padding: 20px 40px;
     background: white;
-    box-shadow: var(--shadow);
-    position: relative;
-    z-index: 10;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .logo {
@@ -46,19 +44,20 @@ body {
 }
 
 .home-link, .logout-btn {
-    color: var(--primary-color);
+.home-link, .logout-btn {
+    color: white;
     text-decoration: none;
     padding: 8px 16px;
     border-radius: 20px;
     transition: all 0.3s ease;
-    background: white;
+    background: var(--primary-color);
     border: 1px solid var(--primary-color);
 }
 
 .home-link:hover, .logout-btn:hover {
-    background: var(--primary-color);
-    color: white;
+    background: var(--secondary-color);
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(103, 58, 183, 0.3);
 }
 
 .profile-main {
@@ -172,7 +171,6 @@ body {
     margin-top: 40px;
 }
 
-/* Анимации */
 @keyframes pulse {
     0% { transform: scale(1); }
     100% { transform: scale(1.05); }
@@ -312,4 +310,4 @@ button:hover {
     .column:last-child {
         border-bottom: none;
     }
-}
+}}
