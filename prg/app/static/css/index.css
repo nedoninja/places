@@ -16,6 +16,48 @@ body {
     padding: 0;
 }
 
+/* Header styles from profile.css */
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    background: white;
+    box-shadow: var(--shadow);
+    position: relative;
+    z-index: 10;
+}
+
+.logo {
+    height: 40px;
+    transition: transform 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.header-actions {
+    display: flex;
+    gap: 20px;
+}
+
+.home-link, .logout-btn {
+    color: var(--primary-color);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    background: blue;
+    border: 1px solid var(--primary-color);
+}
+
+.home-link:hover, .logout-btn:hover {
+    background: var(--primary-color);
+    color: blue;
+    transform: translateY(-2px);
+}
+
 h1 {
     color: var(--primary-color);
     text-align: center;
