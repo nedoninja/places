@@ -1,0 +1,373 @@
+Index: prg/app/views.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.http import HttpResponse\r\nfrom django.shortcuts import render, redirect\r\nfrom django.contrib.auth import login, logout, authenticate\r\nfrom django.contrib.auth.models import User\r\nfrom django.contrib import messages\r\n\r\ndef register(request):\r\n    if request.method == 'POST':\r\n        username = request.POST['username']\r\n        password = request.POST['password']\r\n        \r\n        if User.objects.filter(username=username).exists():\r\n            messages.error(request, 'Username already exists')\r\n            return redirect('register')\r\n        \r\n        user = User.objects.create_user(username=username, password=password)\r\n        login(request, user)\r\n        return redirect('home')\r\n    \r\n    return render(request, 'register.html')\r\n\r\ndef user_login(request):\r\n    if request.method == 'POST':\r\n        username = request.POST['username']\r\n        password = request.POST['password']\r\n        user = authenticate(request, username=username, password=password)\r\n        \r\n        if user is not None:\r\n            login(request, user)\r\n            return redirect('home')\r\n        else:\r\n            messages.error(request, 'Invalid username or password')\r\n    \r\n    return render(request, 'login.html')\r\n\r\ndef user_logout(request):\r\n    logout(request)\r\n    return redirect('home')\r\n\r\ndef index(request):\r\n    return render(request, 'index.html')
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/views.py b/prg/app/views.py
+--- a/prg/app/views.py	(revision 3a60c082df4751e7b7fb8a626c0b27ca2108b1a2)
++++ b/prg/app/views.py	(date 1745065747949)
+@@ -1,41 +1,160 @@
++# app/views.py
++
++import logging
+ from django.http import HttpResponse
+ from django.shortcuts import render, redirect
+ from django.contrib.auth import login, logout, authenticate
+ from django.contrib.auth.models import User
+ from django.contrib import messages
++from django.contrib.auth.decorators import login_required
++from django.core.exceptions import ValidationError
++from django.core.validators import validate_email
++from django.core.mail import send_mail, BadHeaderError
++from django.template.loader import render_to_string
++from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
++from django.utils.encoding import force_bytes, force_str
++from django.contrib.auth.tokens import default_token_generator
++from .models import Profile
++
++logger = logging.getLogger(__name__)
+ 
+ def register(request):
+     if request.method == 'POST':
+-        username = request.POST['username']
+-        password = request.POST['password']
+-        
+-        if User.objects.filter(username=username).exists():
+-            messages.error(request, 'Username already exists')
+-            return redirect('register')
+-        
+-        user = User.objects.create_user(username=username, password=password)
+-        login(request, user)
+-        return redirect('home')
+-    
++        # собираем данные
++        data = {
++            'username': request.POST.get('username', '').strip(),
++            'password': request.POST.get('password', ''),
++            'password_confirm': request.POST.get('password_confirm', ''),
++            'email': request.POST.get('email', '').strip(),
++            'first_name': request.POST.get('first_name', '').strip(),
++            'last_name': request.POST.get('last_name', '').strip(),
++            'middle_name': request.POST.get('middle_name', '').strip(),
++            'phone': request.POST.get('phone', '').strip(),
++            'city': request.POST.get('city', '').strip(),
++            'birth_date': request.POST.get('birth_date', ''),
++            'role': request.POST.get('role', ''),
++        }
++
++        errors = []
++        if User.objects.filter(username=data['username']).exists():
++            errors.append('Пользователь с таким логином уже существует')
++        if User.objects.filter(email=data['email']).exists():
++            errors.append('Пользователь с таким email уже существует')
++        if data['password'] != data['password_confirm']:
++            errors.append('Пароли не совпадают')
++        try:
++            validate_email(data['email'])
++        except ValidationError:
++            errors.append('Введите корректный email')
++
++        if errors:
++            for err in errors:
++                messages.error(request, err)
++            # рендерим заново с отображением сообщений
++            return render(request, 'register.html', context=data)
++
++        try:
++            # создаём неактивного пользователя
++            user = User.objects.create_user(
++                username=data['username'],
++                password=data['password'],
++                email=data['email'],
++                first_name=data['first_name'],
++                last_name=data['last_name']
++            )
++            user.is_active = False
++            user.save()
++
++            Profile.objects.create(
++                user=user,
++                middle_name=data['middle_name'],
++                phone=data['phone'],
++                city=data['city'],
++                birth_date=data['birth_date'],
++                role=data['role']
++            )
++
++            # генерируем токен и ссылку
++            uid = urlsafe_base64_encode(force_bytes(user.pk))
++            token = default_token_generator.make_token(user)
++            activation_link = request.build_absolute_uri(f"/activate/{uid}/{token}/")
++
++            subject = 'Подтвердите вашу почту'
++            message = render_to_string('activation_email.html', {
++                'user': user,
++                'activation_link': activation_link,
++            })
++            try:
++                send_mail(subject, message, None, [data['email']], fail_silently=False)
++            except BadHeaderError as e:
++                logger.error("Ошибка отправки письма активации: %s", e)
++                messages.error(request, 'Не удалось отправить письмо. Попробуйте позже.')
++                return render(request, 'register.html', context=data)
++
++            messages.success(request,
++                'Письмо для подтверждения отправлено. '
++                'Пожалуйста, проверьте почту и перейдите по ссылке.'
++            )
++            return redirect('login')
++
++        except Exception as e:
++            logger.exception("Ошибка при создании пользователя:")
++            messages.error(request, f'Не удалось зарегистрировать: {e}')
++            return render(request, 'register.html', context=data)
++
++    # GET-запрос — просто пустая форма
+     return render(request, 'register.html')
++def activate(request, uidb64, token):
++    try:
++        uid = force_str(urlsafe_base64_decode(uidb64))
++        user = User.objects.get(pk=uid)
++    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
++        user = None
++
++    if user and default_token_generator.check_token(user, token):
++        user.is_active = True
++        user.save()
++        messages.success(request, 'Email подтверждён. Теперь можно войти.')
++        return redirect('login')
++    else:
++        return HttpResponse('Ссылка недействительна или уже использована.', status=400)
++
+ 
+ def user_login(request):
+     if request.method == 'POST':
+         username = request.POST['username']
+         password = request.POST['password']
+         user = authenticate(request, username=username, password=password)
+-        
+         if user is not None:
+-            login(request, user)
+-            return redirect('home')
++            if user.is_active:
++                login(request, user)
++                return redirect('home')
++            else:
++                messages.error(request, 'Аккаунт не активирован. Проверьте почту.')
+         else:
+-            messages.error(request, 'Invalid username or password')
+-    
++            messages.error(request, 'Неверный логин или пароль')
+     return render(request, 'login.html')
+ 
++
+ def user_logout(request):
+     logout(request)
+     return redirect('home')
+ 
++
+ def index(request):
+-    return render(request, 'index.html')
+\ No newline at end of file
++    return render(request, 'index.html')
++
++
++@login_required
++def profile(request):
++    user = request.user
++    try:
++        user_profile = Profile.objects.get(user=user)
++    except Profile.DoesNotExist:
++        user_profile = None
++    context = {
++        'user': user,
++        'profile': user_profile,
++        'date_joined': user.date_joined,
++    }
++    return render(request, 'profile.html', context)
+\ No newline at end of file
+Index: prg/prg/urls.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\"\r\nURL configuration for prg project.\r\n\r\nThe `urlpatterns` list routes URLs to views. For more information please see:\r\n    https://docs.djangoproject.com/en/5.2/topics/http/urls/\r\nExamples:\r\nFunction views\r\n    1. Add an import:  from my_app import views\r\n    2. Add a URL to urlpatterns:  path('', views.home, name='home')\r\nClass-based views\r\n    1. Add an import:  from other_app.views import Home\r\n    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')\r\nIncluding another URLconf\r\n    1. Import the include() function: from django.urls import include, path\r\n    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))\r\n\"\"\"\r\nfrom django.contrib import admin\r\nfrom django.urls import path\r\nfrom app import views\r\n\r\nurlpatterns = [\r\n    path('', views.index, name='home'),\r\n    path('register/', views.register, name='register'),\r\n    path('login/', views.user_login, name='login'),\r\n    path('logout/', views.user_logout, name='logout'),\r\n]\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/prg/urls.py b/prg/prg/urls.py
+--- a/prg/prg/urls.py	(revision 3a60c082df4751e7b7fb8a626c0b27ca2108b1a2)
++++ b/prg/prg/urls.py	(date 1745065671149)
+@@ -14,13 +14,18 @@
+     1. Import the include() function: from django.urls import include, path
+     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+ """
++from django.contrib import admin
+ from django.contrib import admin
+ from django.urls import path
++
+ from app import views
+ 
+ urlpatterns = [
+     path('', views.index, name='home'),
+     path('register/', views.register, name='register'),
++    path('activate/<uidb64>/<token>/', views.activate, name='activate'),
+     path('login/', views.user_login, name='login'),
+     path('logout/', views.user_logout, name='logout'),
++    path('profile/', views.profile, name='profile'),
++    path('admin/', admin.site.urls),
+ ]
+Index: prg/app/templates/register.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><h2>Register</h2>\r\n<form method=\"post\">\r\n    {% csrf_token %}\r\n    <input type=\"text\" name=\"username\" placeholder=\"Username\" required>\r\n    <input type=\"password\" name=\"password\" placeholder=\"Password\" required>\r\n    <button type=\"submit\">Регистрация</button>\r\n</form>\r\n<p>Есть аккаунт <a href=\"/login/\">Логин</a></p>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/register.html b/prg/app/templates/register.html
+--- a/prg/app/templates/register.html	(revision 3a60c082df4751e7b7fb8a626c0b27ca2108b1a2)
++++ b/prg/app/templates/register.html	(date 1745065959325)
+@@ -1,8 +1,38 @@
+-<h2>Register</h2>
++{# templates/register.html #}
++
++<h2>Регистрация</h2>
++
++{# блок для вывода сообщений ошибок/успеха #}
++{% if messages %}
++  <ul class="messages">
++    {% for message in messages %}
++      <li class="{{ message.tags }}">{{ message }}</li>
++    {% endfor %}
++  </ul>
++{% endif %}
++
+ <form method="post">
+     {% csrf_token %}
+-    <input type="text" name="username" placeholder="Username" required>
+-    <input type="password" name="password" placeholder="Password" required>
++    <input type="text" name="last_name" placeholder="Фамилия" value="{{ last_name }}" required>
++    <input type="text" name="first_name" placeholder="Имя" value="{{ first_name }}" required>
++    <input type="text" name="middle_name" placeholder="Отчество" value="{{ middle_name }}">
++
++    <input type="text" name="username" placeholder="Логин" value="{{ username }}" required>
++    <input type="email" name="email" placeholder="Email" value="{{ email }}" required>
++    <input type="password" name="password" placeholder="Пароль" required>
++    <input type="password" name="password_confirm" placeholder="Повторите пароль" required>
++
++    <input type="tel" name="phone" placeholder="Номер телефона" value="{{ phone }}" required>
++    <input type="text" name="city" placeholder="Город" value="{{ city }}" required>
++    <input type="date" name="birth_date" value="{{ birth_date }}" required>
++
++    <select name="role" required>
++        <option value="" disabled {% if not role %}selected{% endif %}>Ваша роль</option>
++        <option value="customer" {% if role == 'customer' %}selected{% endif %}>Заказчик</option>
++        <option value="executor" {% if role == 'executor' %}selected{% endif %}>Исполнитель</option>
++    </select>
++
+     <button type="submit">Регистрация</button>
+ </form>
+-<p>Есть аккаунт <a href="/login/">Логин</a></p>
+\ No newline at end of file
++
++<p>Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+Index: prg/app/templates/activation_email.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/activation_email.html b/prg/app/templates/activation_email.html
+new file mode 100644
+--- /dev/null	(date 1745061411466)
++++ b/prg/app/templates/activation_email.html	(date 1745061411466)
+@@ -0,0 +1,11 @@
++{# templates/activation_email.html #}
++<p>Здравствуйте, {{ user.first_name }}!</p>
++
++<p>Спасибо за регистрацию на нашем агрегаторе мероприятий. Чтобы завершить активацию аккаунта, перейдите по ссылке:</p>
++
++<p><a href="{{ activation_link }}">{{ activation_link }}</a></p>
++
++<p>Если вы не регистрировались, просто проигнорируйте это письмо.</p>
++
++<p>С уважением,<br>
++Команда хакатона</p>
+Index: prg/app/models.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.db import models\r\n\r\n# Create your models here.\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/models.py b/prg/app/models.py
+--- a/prg/app/models.py	(revision 3a60c082df4751e7b7fb8a626c0b27ca2108b1a2)
++++ b/prg/app/models.py	(date 1745060548508)
+@@ -1,3 +1,16 @@
+ from django.db import models
++from django.contrib.auth.models import User
+ 
+-# Create your models here.
++class Profile(models.Model):
++    user = models.OneToOneField(User, on_delete=models.CASCADE)
++    middle_name = models.CharField(max_length=100, blank=True)
++    phone = models.CharField(max_length=20)
++    city = models.CharField(max_length=100)
++    birth_date = models.DateField()
++    role = models.CharField(max_length=20, choices=[
++        ('customer', 'Заказчик'),
++        ('executor', 'Исполнитель'),
++    ])
++
++    def __str__(self):
++        return f"{self.user.username}'s Profile"
+\ No newline at end of file
+Index: prg/prg/settings.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\"\r\nDjango settings for prg project.\r\n\r\nGenerated by 'django-admin startproject' using Django 5.2.\r\n\r\nFor more information on this file, see\r\nhttps://docs.djangoproject.com/en/5.2/topics/settings/\r\n\r\nFor the full list of settings and their values, see\r\nhttps://docs.djangoproject.com/en/5.2/ref/settings/\r\n\"\"\"\r\n\r\nfrom pathlib import Path\r\n\r\n# Build paths inside the project like this: BASE_DIR / 'subdir'.\r\nBASE_DIR = Path(__file__).resolve().parent.parent\r\n\r\n\r\n# Quick-start development settings - unsuitable for production\r\n# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/\r\n\r\n# SECURITY WARNING: keep the secret key used in production secret!\r\nSECRET_KEY = 'django-insecure-klur0f_3hj24i*w++@7-4v=0wr1im7!y-5-d$)7r=2je6)zx1e'\r\n\r\n# SECURITY WARNING: don't run with debug turned on in production!\r\nDEBUG = True\r\n\r\nALLOWED_HOSTS = []\r\n\r\n\r\n# Application definition\r\n\r\nINSTALLED_APPS = [\r\n    'django.contrib.admin',\r\n    'django.contrib.auth',\r\n    'django.contrib.contenttypes',\r\n    'django.contrib.sessions',\r\n    'django.contrib.messages',\r\n    'django.contrib.staticfiles',\r\n    'app'\r\n]\r\n\r\nMIDDLEWARE = [\r\n    'django.middleware.security.SecurityMiddleware',\r\n    'django.contrib.sessions.middleware.SessionMiddleware',\r\n    'django.middleware.common.CommonMiddleware',\r\n    'django.middleware.csrf.CsrfViewMiddleware',\r\n    'django.contrib.auth.middleware.AuthenticationMiddleware',\r\n    'django.contrib.messages.middleware.MessageMiddleware',\r\n    'django.middleware.clickjacking.XFrameOptionsMiddleware',\r\n]\r\n\r\nROOT_URLCONF = 'prg.urls'\r\n\r\nTEMPLATES = [\r\n    {\r\n        'BACKEND': 'django.template.backends.django.DjangoTemplates',\r\n        'DIRS': [],\r\n        'APP_DIRS': True,\r\n        'OPTIONS': {\r\n            'context_processors': [\r\n                'django.template.context_processors.request',\r\n                'django.contrib.auth.context_processors.auth',\r\n                'django.contrib.messages.context_processors.messages',\r\n            ],\r\n        },\r\n    },\r\n]\r\n\r\nWSGI_APPLICATION = 'prg.wsgi.application'\r\n\r\n\r\n# Database\r\n# https://docs.djangoproject.com/en/5.2/ref/settings/#databases\r\n\r\nDATABASES = {\r\n    'default': {\r\n        'ENGINE': 'django.db.backends.sqlite3',\r\n        'NAME': BASE_DIR / 'db.sqlite3',\r\n    }\r\n}\r\n\r\n\r\n# Password validation\r\n# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators\r\n\r\nAUTH_PASSWORD_VALIDATORS = [\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',\r\n    },\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',\r\n    },\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',\r\n    },\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',\r\n    },\r\n]\r\n\r\n\r\n# Internationalization\r\n# https://docs.djangoproject.com/en/5.2/topics/i18n/\r\n\r\nLANGUAGE_CODE = 'en-us'\r\n\r\nTIME_ZONE = 'UTC'\r\n\r\nUSE_I18N = True\r\n\r\nUSE_TZ = True\r\n\r\n\r\n# Static files (CSS, JavaScript, Images)\r\n# https://docs.djangoproject.com/en/5.2/howto/static-files/\r\n\r\nSTATIC_URL = 'static/'\r\n\r\n# Default primary key field type\r\n# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field\r\n\r\nDEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'\r\n\r\nLOGIN_REDIRECT_URL = '/'  \r\nLOGOUT_REDIRECT_URL = '/' 
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/prg/settings.py b/prg/prg/settings.py
+--- a/prg/prg/settings.py	(revision 3a60c082df4751e7b7fb8a626c0b27ca2108b1a2)
++++ b/prg/prg/settings.py	(date 1745061152220)
+@@ -123,4 +123,17 @@
+ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+ 
+ LOGIN_REDIRECT_URL = '/'  
+-LOGOUT_REDIRECT_URL = '/' 
+\ No newline at end of file
++LOGOUT_REDIRECT_URL = '/'
++
++
++# Email settings
++EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
++EMAIL_HOST = 'smtp.yandex.ru'
++EMAIL_PORT = 587
++EMAIL_HOST_USER = 'd1arama@yandex.ru'
++EMAIL_HOST_PASSWORD = 'qpetjwgrdzkdlkvf'
++EMAIL_USE_TLS = True
++DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
++
++# По умолчанию новые пользователи неактивны, пока не подтвердят почту
++ACCOUNT_ACTIVATION_REQUIRED = True
+\ No newline at end of file
+Index: prg/app/templates/index.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><h1>привет</h1>\r\n{% if user.is_authenticated %}\r\n    <p>привет, {{ user.username }}! <a href=\"/logout/\">выйти</a></p>\r\n{% else %}\r\n    <p><a href=\"/login/\">Логин</a> or <a href=\"/register/\">регистрация</a></p>\r\n{% endif %}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/index.html b/prg/app/templates/index.html
+--- a/prg/app/templates/index.html	(revision 3a60c082df4751e7b7fb8a626c0b27ca2108b1a2)
++++ b/prg/app/templates/index.html	(date 1745060550010)
+@@ -1,6 +1,7 @@
+ <h1>привет</h1>
+ {% if user.is_authenticated %}
+     <p>привет, {{ user.username }}! <a href="/logout/">выйти</a></p>
++    <a href="/profile/">профиль</a>
+ {% else %}
+     <p><a href="/login/">Логин</a> or <a href="/register/">регистрация</a></p>
+ {% endif %}
+\ No newline at end of file

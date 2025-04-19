@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f17d855d-c51e-447e-8e0c-a3fb33f033df" name="Changes" comment="email">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/admin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/apps.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/apps.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/templates/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/templates/login.html" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/templates/login.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/templates/register.html" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/templates/register.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/app/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/app/views.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/prg/db.sqlite3" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/manage.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/manage.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/prg/asgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/prg/asgi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/prg/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/prg/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/prg/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/prg/urls.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/prg/prg/wsgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/prg/prg/wsgi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="HTML File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="working_email_chek" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
+  </component>
+  <component name="ProjectId" id="2vwauqJaKGFIUnN8KMR2sBUAKQU" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultHtmlFileTemplate": "HTML File",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="manage" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="places" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/prg" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/prg/manage.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.manage" />
+        <item itemvalue="Python.manage" />
+        <item itemvalue="Python.manage" />
+        <item itemvalue="Python.manage" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f17d855d-c51e-447e-8e0c-a3fb33f033df" name="Changes" comment="" />
+      <created>1745058816657</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1745058816657</updated>
+    </task>
+    <task id="LOCAL-00001" summary="email">
+      <option name="closed" value="true" />
+      <created>1745067282435</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1745067282435</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="email" />
+    <option name="LAST_COMMIT_MESSAGE" value="email" />
+  </component>
+</project>
