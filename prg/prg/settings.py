@@ -130,6 +130,8 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
+
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.yandex.ru'
 EMAIL_PORT = 587
@@ -140,3 +142,4 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # По умолчанию новые пользователи неактивны, пока не подтвердят почту
 ACCOUNT_ACTIVATION_REQUIRED = True
+

@@ -4,12 +4,13 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import Profile, Service
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 
 
 import logging
-from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -21,7 +22,6 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from .models import Profile
-
 
 def is_executor(user):
     return user.profile.role == 'executor'
@@ -41,7 +41,7 @@ def register(request):
             birth_date = request.POST['birth_date']
             role = request.POST['role']
         except KeyError as e:
-            messages.error(request, f'Отсутствует обязательное поле: {e}')
+            messages.error(request, f'Отсутствует поле: {e}')
             return render(request, 'register.html')
 
         errors = []
@@ -59,7 +59,7 @@ def register(request):
         if errors:
             for err in errors:
                 messages.error(request, err)
-            return render(request, 'register.html', context={
+            return render(request, 'register.html', {
                 'username': username,
                 'email': email,
                 'first_name': first_name,
@@ -93,7 +93,9 @@ def register(request):
 
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            activation_link = request.build_absolute_uri(f"/activate/{uid}/{token}/")
+            activation_link = request.build_absolute_uri(
+                f"/activate/{uid}/{token}/"
+            )
 
             subject = 'Подтвердите вашу почту'
             message = render_to_string('activation_email.html', {
@@ -102,15 +104,13 @@ def register(request):
             })
             send_mail(subject, message, None, [email], fail_silently=False)
 
-            messages.success(request,
-                'Письмо для подтверждения отправлено. '
-                'Пожалуйста, проверьте почту и перейдите по ссылке.')
-            return redirect('login')
+            # Redirect to страницу проверки почты
+            return redirect('check_mail')
 
         except Exception as e:
             logger.exception("Ошибка при создании пользователя:")
             messages.error(request, f'Не удалось зарегистрировать: {e}')
-            return render(request, 'register.html', context={
+            return render(request, 'register.html', {
                 'username': username,
                 'email': email,
                 'first_name': first_name,
@@ -124,6 +124,10 @@ def register(request):
 
     return render(request, 'register.html')
 
+
+def check_mail(request):
+    # просто рендерим страницу с инструкцией
+    return render(request, 'check_your_gmail.html')
 def activate(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
@@ -165,6 +169,30 @@ def index(request):
     return render(request, 'index.html')
 
 
+
+
+def user_login(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        password = request.POST['password']
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.error(request, 'Неверный логин или пароль')
+    
+    return render(request, 'login.html')
+
+def user_logout(request):
+    logout(request)
+    return redirect('home')
+
+def index(request):
+    services = Service.objects.all().order_by('-created_at')
+    return render(request, 'index.html', {'services': services})
+
 @login_required
 def profile(request):
     user = request.user
@@ -172,12 +200,14 @@ def profile(request):
         user_profile = Profile.objects.get(user=user)
     except Profile.DoesNotExist:
         user_profile = None
+    
     context = {
         'user': user,
         'profile': user_profile,
         'date_joined': user.date_joined,
     }
     return render(request, 'profile.html', context)
+
 def service_detail(request, service_id):
     service = get_object_or_404(Service, pk=service_id)
     return render(request, 'service_detail.html', {'service': service})

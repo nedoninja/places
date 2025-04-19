@@ -1,0 +1,1085 @@
+Index: prg/app/views.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.shortcuts import render, redirect, get_object_or_404\r\nfrom django.contrib.auth import login, logout, authenticate\r\nfrom django.contrib.auth.models import User\r\nfrom django.contrib import messages\r\nfrom django.contrib.auth.decorators import login_required, user_passes_test\r\nfrom .models import Profile, Service\r\n\r\n\r\nimport logging\r\nfrom django.http import HttpResponse\r\nfrom django.shortcuts import render, redirect\r\nfrom django.contrib.auth import login, logout, authenticate\r\nfrom django.contrib.auth.models import User\r\nfrom django.contrib import messages\r\nfrom django.contrib.auth.decorators import login_required\r\nfrom django.core.exceptions import ValidationError\r\nfrom django.core.validators import validate_email\r\nfrom django.core.mail import send_mail, BadHeaderError\r\nfrom django.template.loader import render_to_string\r\nfrom django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode\r\nfrom django.utils.encoding import force_bytes, force_str\r\nfrom django.contrib.auth.tokens import default_token_generator\r\nfrom .models import Profile\r\n\r\n\r\ndef is_executor(user):\r\n    return user.profile.role == 'executor'\r\n\r\ndef register(request):\r\n    if request.method == 'POST':\r\n        try:\r\n            username = request.POST['username'].strip()\r\n            password = request.POST['password']\r\n            password_confirm = request.POST['password_confirm']\r\n            email = request.POST['email'].strip()\r\n            first_name = request.POST['first_name'].strip()\r\n            last_name = request.POST['last_name'].strip()\r\n            middle_name = request.POST.get('middle_name', '').strip()\r\n            phone = request.POST['phone'].strip()\r\n            city = request.POST['city'].strip()\r\n            birth_date = request.POST['birth_date']\r\n            role = request.POST['role']\r\n        except KeyError as e:\r\n            messages.error(request, f'Отсутствует обязательное поле: {e}')\r\n            return render(request, 'register.html')\r\n\r\n        errors = []\r\n        if User.objects.filter(username=username).exists():\r\n            errors.append('Пользователь с таким логином уже существует')\r\n        if User.objects.filter(email=email).exists():\r\n            errors.append('Пользователь с таким email уже существует')\r\n        if password != password_confirm:\r\n            errors.append('Пароли не совпадают')\r\n        try:\r\n            validate_email(email)\r\n        except ValidationError:\r\n            errors.append('Введите корректный email')\r\n\r\n        if errors:\r\n            for err in errors:\r\n                messages.error(request, err)\r\n            return render(request, 'register.html', context={\r\n                'username': username,\r\n                'email': email,\r\n                'first_name': first_name,\r\n                'last_name': last_name,\r\n                'middle_name': middle_name,\r\n                'phone': phone,\r\n                'city': city,\r\n                'birth_date': birth_date,\r\n                'role': role\r\n            })\r\n\r\n        try:\r\n            user = User.objects.create_user(\r\n                username=username,\r\n                password=password,\r\n                email=email,\r\n                first_name=first_name,\r\n                last_name=last_name\r\n            )\r\n            user.is_active = False\r\n            user.save()\r\n\r\n            Profile.objects.create(\r\n                user=user,\r\n                middle_name=middle_name,\r\n                phone=phone,\r\n                city=city,\r\n                birth_date=birth_date,\r\n                role=role\r\n            )\r\n\r\n            uid = urlsafe_base64_encode(force_bytes(user.pk))\r\n            token = default_token_generator.make_token(user)\r\n            activation_link = request.build_absolute_uri(f\"/activate/{uid}/{token}/\")\r\n\r\n            subject = 'Подтвердите вашу почту'\r\n            message = render_to_string('activation_email.html', {\r\n                'user': user,\r\n                'activation_link': activation_link,\r\n            })\r\n            send_mail(subject, message, None, [email], fail_silently=False)\r\n\r\n            messages.success(request,\r\n                'Письмо для подтверждения отправлено. '\r\n                'Пожалуйста, проверьте почту и перейдите по ссылке.')\r\n            return redirect('login')\r\n\r\n        except Exception as e:\r\n            logger.exception(\"Ошибка при создании пользователя:\")\r\n            messages.error(request, f'Не удалось зарегистрировать: {e}')\r\n            return render(request, 'register.html', context={\r\n                'username': username,\r\n                'email': email,\r\n                'first_name': first_name,\r\n                'last_name': last_name,\r\n                'middle_name': middle_name,\r\n                'phone': phone,\r\n                'city': city,\r\n                'birth_date': birth_date,\r\n                'role': role\r\n            })\r\n\r\n    return render(request, 'register.html')\r\n\r\ndef activate(request, uidb64, token):\r\n    try:\r\n        uid = force_str(urlsafe_base64_decode(uidb64))\r\n        user = User.objects.get(pk=uid)\r\n    except (TypeError, ValueError, OverflowError, User.DoesNotExist):\r\n        user = None\r\n\r\n    if user and default_token_generator.check_token(user, token):\r\n        user.is_active = True\r\n        user.save()\r\n        messages.success(request, 'Email подтверждён. Теперь можно войти.')\r\n        return redirect('login')\r\n    else:\r\n        return HttpResponse('Ссылка недействительна или уже использована.', status=400)\r\n\r\n\r\ndef user_login(request):\r\n    if request.method == 'POST':\r\n        username = request.POST['username']\r\n        password = request.POST['password']\r\n        user = authenticate(request, username=username, password=password)\r\n        if user is not None:\r\n            if user.is_active:\r\n                login(request, user)\r\n                return redirect('home')\r\n            else:\r\n                messages.error(request, 'Аккаунт не активирован. Проверьте почту.')\r\n        else:\r\n            messages.error(request, 'Неверный логин или пароль')\r\n    return render(request, 'login.html')\r\n\r\n\r\ndef user_logout(request):\r\n    logout(request)\r\n    return redirect('home')\r\n\r\n\r\ndef index(request):\r\n    return render(request, 'index.html')\r\n\r\n\r\n@login_required\r\ndef profile(request):\r\n    user = request.user\r\n    try:\r\n        user_profile = Profile.objects.get(user=user)\r\n    except Profile.DoesNotExist:\r\n        user_profile = None\r\n    context = {\r\n        'user': user,\r\n        'profile': user_profile,\r\n        'date_joined': user.date_joined,\r\n    }\r\n    return render(request, 'profile.html', context)\r\ndef service_detail(request, service_id):\r\n    service = get_object_or_404(Service, pk=service_id)\r\n    return render(request, 'service_detail.html', {'service': service})\r\n\r\n@login_required\r\n@user_passes_test(is_executor)\r\ndef create_service(request):\r\n    if request.method == 'POST':\r\n        service = Service(\r\n            author=request.user,\r\n            title=request.POST['title'],\r\n            description=request.POST['description'],\r\n            price=request.POST['price'],\r\n            image=request.FILES['image']\r\n        )\r\n        service.save()\r\n        return redirect('home')\r\n    return render(request, 'create_service.html')\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/views.py b/prg/app/views.py
+--- a/prg/app/views.py	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/views.py	(date 1745075074458)
+@@ -4,72 +4,46 @@
+ from django.contrib import messages
+ from django.contrib.auth.decorators import login_required, user_passes_test
+ from .models import Profile, Service
+-
+-
+-import logging
+-from django.http import HttpResponse
+-from django.shortcuts import render, redirect
+-from django.contrib.auth import login, logout, authenticate
+-from django.contrib.auth.models import User
+-from django.contrib import messages
+-from django.contrib.auth.decorators import login_required
+ from django.core.exceptions import ValidationError
+ from django.core.validators import validate_email
+-from django.core.mail import send_mail, BadHeaderError
+-from django.template.loader import render_to_string
+-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+-from django.utils.encoding import force_bytes, force_str
+-from django.contrib.auth.tokens import default_token_generator
+-from .models import Profile
+-
+ 
+ def is_executor(user):
+     return user.profile.role == 'executor'
+ 
+ def register(request):
+     if request.method == 'POST':
+-        try:
+-            username = request.POST['username'].strip()
+-            password = request.POST['password']
+-            password_confirm = request.POST['password_confirm']
+-            email = request.POST['email'].strip()
+-            first_name = request.POST['first_name'].strip()
+-            last_name = request.POST['last_name'].strip()
+-            middle_name = request.POST.get('middle_name', '').strip()
+-            phone = request.POST['phone'].strip()
+-            city = request.POST['city'].strip()
+-            birth_date = request.POST['birth_date']
+-            role = request.POST['role']
+-        except KeyError as e:
+-            messages.error(request, f'Отсутствует обязательное поле: {e}')
+-            return render(request, 'register.html')
++        username = request.POST['username']
++        password = request.POST['password']
++        password_confirm = request.POST['password_confirm']
++        email = request.POST['email']
++        first_name = request.POST['first_name']
++        last_name = request.POST['last_name']
++        middle_name = request.POST.get('middle_name', '')
++        phone = request.POST['phone']
++        city = request.POST['city']
++        birth_date = request.POST['birth_date']
++        role = request.POST['role']
+ 
+         errors = []
++        
+         if User.objects.filter(username=username).exists():
+             errors.append('Пользователь с таким логином уже существует')
++        
+         if User.objects.filter(email=email).exists():
+             errors.append('Пользователь с таким email уже существует')
++        
+         if password != password_confirm:
+             errors.append('Пароли не совпадают')
++        
+         try:
+             validate_email(email)
+         except ValidationError:
+             errors.append('Введите корректный email')
+ 
+         if errors:
+-            for err in errors:
+-                messages.error(request, err)
+-            return render(request, 'register.html', context={
+-                'username': username,
+-                'email': email,
+-                'first_name': first_name,
+-                'last_name': last_name,
+-                'middle_name': middle_name,
+-                'phone': phone,
+-                'city': city,
+-                'birth_date': birth_date,
+-                'role': role
+-            })
++            for error in errors:
++                messages.error(request, error)
++            return redirect('register')
+ 
+         try:
+             user = User.objects.create_user(
+@@ -79,9 +53,7 @@
+                 first_name=first_name,
+                 last_name=last_name
+             )
+-            user.is_active = False
+-            user.save()
+-
++            
+             Profile.objects.create(
+                 user=user,
+                 middle_name=middle_name,
+@@ -90,80 +62,37 @@
+                 birth_date=birth_date,
+                 role=role
+             )
+-
+-            uid = urlsafe_base64_encode(force_bytes(user.pk))
+-            token = default_token_generator.make_token(user)
+-            activation_link = request.build_absolute_uri(f"/activate/{uid}/{token}/")
+-
+-            subject = 'Подтвердите вашу почту'
+-            message = render_to_string('activation_email.html', {
+-                'user': user,
+-                'activation_link': activation_link,
+-            })
+-            send_mail(subject, message, None, [email], fail_silently=False)
+-
+-            messages.success(request,
+-                'Письмо для подтверждения отправлено. '
+-                'Пожалуйста, проверьте почту и перейдите по ссылке.')
+-            return redirect('login')
+-
++            
++            login(request, user)
++            return redirect('home')
++        
+         except Exception as e:
+-            logger.exception("Ошибка при создании пользователя:")
+-            messages.error(request, f'Не удалось зарегистрировать: {e}')
+-            return render(request, 'register.html', context={
+-                'username': username,
+-                'email': email,
+-                'first_name': first_name,
+-                'last_name': last_name,
+-                'middle_name': middle_name,
+-                'phone': phone,
+-                'city': city,
+-                'birth_date': birth_date,
+-                'role': role
+-            })
+-
++            messages.error(request, f'Ошибка при регистрации: {str(e)}')
++            return redirect('register')
++    
+     return render(request, 'register.html')
+ 
+-def activate(request, uidb64, token):
+-    try:
+-        uid = force_str(urlsafe_base64_decode(uidb64))
+-        user = User.objects.get(pk=uid)
+-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+-        user = None
+-
+-    if user and default_token_generator.check_token(user, token):
+-        user.is_active = True
+-        user.save()
+-        messages.success(request, 'Email подтверждён. Теперь можно войти.')
+-        return redirect('login')
+-    else:
+-        return HttpResponse('Ссылка недействительна или уже использована.', status=400)
+-
+-
+ def user_login(request):
+     if request.method == 'POST':
+         username = request.POST['username']
+         password = request.POST['password']
+         user = authenticate(request, username=username, password=password)
++        
+         if user is not None:
+-            if user.is_active:
+-                login(request, user)
+-                return redirect('home')
+-            else:
+-                messages.error(request, 'Аккаунт не активирован. Проверьте почту.')
++            login(request, user)
++            return redirect('home')
+         else:
+             messages.error(request, 'Неверный логин или пароль')
++    
+     return render(request, 'login.html')
+ 
+-
+ def user_logout(request):
+     logout(request)
+     return redirect('home')
+ 
+-
+ def index(request):
+-    return render(request, 'index.html')
+-
++    services = Service.objects.all().order_by('-created_at')
++    return render(request, 'index.html', {'services': services})
+ 
+ @login_required
+ def profile(request):
+@@ -172,12 +101,14 @@
+         user_profile = Profile.objects.get(user=user)
+     except Profile.DoesNotExist:
+         user_profile = None
++    
+     context = {
+         'user': user,
+         'profile': user_profile,
+         'date_joined': user.date_joined,
+     }
+     return render(request, 'profile.html', context)
++
+ def service_detail(request, service_id):
+     service = get_object_or_404(Service, pk=service_id)
+     return render(request, 'service_detail.html', {'service': service})
+Index: prg/prg/urls.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\"\r\nURL configuration for prg project.\r\n\r\nThe `urlpatterns` list routes URLs to views. For more information please see:\r\n    https://docs.djangoproject.com/en/5.2/topics/http/urls/\r\nExamples:\r\nFunction vie    path('', views.index, name='home'),\r\n    path('register/', views.register, name='register'),\r\n    path('login/', views.user_login, name='login'),\r\n    path('logout/', views.user_logout, name='logout'),\r\n    path('profile/', views.profile, name='profile'),    1. Add an import:  from other_app.views import Home\r\n    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')\r\nIncluding another URLconf\r\n    1. Import the include() function: from django.urls import include, path\r\n    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))\r\n\"\"\"\r\nfrom django.contrib import admin\r\nfrom django.urls import path\r\nfrom app import views\r\nfrom django.conf import settings\r\nfrom django.conf.urls.static import static\r\n\r\nurlpatterns = [\r\n    path('', views.index, name='home'),\r\n    path('register/', views.register, name='register'),\r\n    path('activate/<uidb64>/<token>/', views.activate, name='activate'),\r\n    path('login/', views.user_login, name='login'),\r\n    path('logout/', views.user_logout, name='logout'),\r\n    path('profile/', views.profile, name='profile'),\r\n    path('create-service/', views.create_service, name='create_service'),\r\n    path('service/<int:service_id>/', views.service_detail, name='service_detail'),\r\n]\r\n\r\n\r\nurlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/prg/urls.py b/prg/prg/urls.py
+--- a/prg/prg/urls.py	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/prg/urls.py	(date 1745075079043)
+@@ -23,7 +23,6 @@
+ urlpatterns = [
+     path('', views.index, name='home'),
+     path('register/', views.register, name='register'),
+-    path('activate/<uidb64>/<token>/', views.activate, name='activate'),
+     path('login/', views.user_login, name='login'),
+     path('logout/', views.user_logout, name='logout'),
+     path('profile/', views.profile, name='profile'),
+Index: prg/prg/settings.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"\"\"\r\nDjango settings for prg project.\r\n\r\nGenerated by 'django-admin startproject' using Django 5.2.\r\n\r\nFor more information on this file, see\r\nhttps://docs.djangoproject.com/en/5.2/topics/settings/\r\n\r\nFor the full list of settings and their values, see\r\nhttps://docs.djangoproject.com/en/5.2/ref/settings/\r\n\"\"\"\r\n\r\nfrom pathlib import Path\r\nimport os\r\n\r\n# Build paths inside the project like this: BASE_DIR / 'subdir'.\r\nBASE_DIR = Path(__file__).resolve().parent.parent\r\n\r\n\r\n# Quick-start development settings - unsuitable for production\r\n# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/\r\n\r\n# SECURITY WARNING: keep the secret key used in production secret!\r\nSECRET_KEY = 'django-insecure-klur0f_3hj24i*w++@7-4v=0wr1im7!y-5-d$)7r=2je6)zx1e'\r\n\r\n# SECURITY WARNING: don't run with debug turned on in production!\r\nDEBUG = True\r\n\r\nALLOWED_HOSTS = []\r\n\r\n\r\n# Application definition\r\n\r\nINSTALLED_APPS = [\r\n    'django.contrib.admin',\r\n    'django.contrib.auth',\r\n    'django.contrib.contenttypes',\r\n    'django.contrib.sessions',\r\n    'django.contrib.messages',\r\n    'django.contrib.staticfiles',\r\n    'app'\r\n]\r\n\r\nMIDDLEWARE = [\r\n    'django.middleware.security.SecurityMiddleware',\r\n    'django.contrib.sessions.middleware.SessionMiddleware',\r\n    'django.middleware.common.CommonMiddleware',\r\n    'django.middleware.csrf.CsrfViewMiddleware',\r\n    'django.contrib.auth.middleware.AuthenticationMiddleware',\r\n    'django.contrib.messages.middleware.MessageMiddleware',\r\n    'django.middleware.clickjacking.XFrameOptionsMiddleware',\r\n]\r\n\r\nROOT_URLCONF = 'prg.urls'\r\n\r\nTEMPLATES = [\r\n    {\r\n        'BACKEND': 'django.template.backends.django.DjangoTemplates',\r\n        'DIRS': [],\r\n        'APP_DIRS': True,\r\n        'OPTIONS': {\r\n            'context_processors': [\r\n                'django.template.context_processors.request',\r\n                'django.contrib.auth.context_processors.auth',\r\n                'django.contrib.messages.context_processors.messages',\r\n            ],\r\n        },\r\n    },\r\n]\r\n\r\nWSGI_APPLICATION = 'prg.wsgi.application'\r\n\r\n\r\n# Database\r\n# https://docs.djangoproject.com/en/5.2/ref/settings/#databases\r\n\r\nDATABASES = {\r\n    'default': {\r\n        'ENGINE': 'django.db.backends.sqlite3',\r\n        'NAME': BASE_DIR / 'db.sqlite3',\r\n    }\r\n}\r\n\r\n\r\n# Password validation\r\n# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators\r\n\r\nAUTH_PASSWORD_VALIDATORS = [\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',\r\n    },\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',\r\n    },\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',\r\n    },\r\n    {\r\n        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',\r\n    },\r\n]\r\n\r\n\r\n# Internationalization\r\n# https://docs.djangoproject.com/en/5.2/topics/i18n/\r\n\r\nLANGUAGE_CODE = 'en-us'\r\n\r\nTIME_ZONE = 'UTC'\r\n\r\nUSE_I18N = True\r\n\r\nUSE_TZ = True\r\n\r\n\r\n# Static files (CSS, JavaScript, Images)\r\n# https://docs.djangoproject.com/en/5.2/howto/static-files/\r\n\r\nSTATIC_URL = 'static/'\r\n\r\n# Default primary key field type\r\n# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field\r\n\r\nDEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'\r\n\r\nLOGIN_REDIRECT_URL = '/'  \r\nLOGOUT_REDIRECT_URL = '/' \r\n\r\nMEDIA_URL = '/media/'\r\nMEDIA_ROOT = os.path.join(BASE_DIR, 'media')\r\n\r\n\r\nEMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'\r\nEMAIL_HOST = 'smtp.yandex.ru'\r\nEMAIL_PORT = 587\r\nEMAIL_HOST_USER = 'd1arama@yandex.ru'\r\nEMAIL_HOST_PASSWORD = 'qpetjwgrdzkdlkvf'\r\nEMAIL_USE_TLS = True\r\nDEFAULT_FROM_EMAIL = EMAIL_HOST_USER\r\n\r\n# По умолчанию новые пользователи неактивны, пока не подтвердят почту\r\nACCOUNT_ACTIVATION_REQUIRED = True
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/prg/settings.py b/prg/prg/settings.py
+--- a/prg/prg/settings.py	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/prg/settings.py	(date 1745075078878)
+@@ -127,16 +127,4 @@
+ LOGOUT_REDIRECT_URL = '/' 
+ 
+ MEDIA_URL = '/media/'
+-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+-
+-
+-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+-EMAIL_HOST = 'smtp.yandex.ru'
+-EMAIL_PORT = 587
+-EMAIL_HOST_USER = 'd1arama@yandex.ru'
+-EMAIL_HOST_PASSWORD = 'qpetjwgrdzkdlkvf'
+-EMAIL_USE_TLS = True
+-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+-
+-# По умолчанию новые пользователи неактивны, пока не подтвердят почту
+-ACCOUNT_ACTIVATION_REQUIRED = True
+\ No newline at end of file
++MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+\ No newline at end of file
+Index: prg/app/templates/register.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{# templates/register.html #}\r\n\r\n<h2>Регистрация</h2>\r\n\r\n{% if messages %}\r\n  <ul class=\"messages\">\r\n    {% for message in messages %}\r\n      <li class=\"{{ message.tags }}\">{{ message }}</li>\r\n    {% endfor %}\r\n  </ul>\r\n{% endif %}\r\n\r\n<form method=\"post\">\r\n    {% csrf_token %}\r\n    <input type=\"text\" name=\"last_name\" placeholder=\"Фамилия\" value=\"{{ last_name }}\" required>\r\n    <input type=\"text\" name=\"first_name\" placeholder=\"Имя\" value=\"{{ first_name }}\" required>\r\n    <input type=\"text\" name=\"middle_name\" placeholder=\"Отчество\" value=\"{{ middle_name }}\">\r\n\r\n    <input type=\"text\" name=\"username\" placeholder=\"Логин\" value=\"{{ username }}\" required>\r\n    <input type=\"email\" name=\"email\" placeholder=\"Email\" value=\"{{ email }}\" required>\r\n    <input type=\"password\" name=\"password\" placeholder=\"Пароль\" required>\r\n    <input type=\"password\" name=\"password_confirm\" placeholder=\"Повторите пароль\" required>\r\n\r\n    <input type=\"tel\" name=\"phone\" placeholder=\"Номер телефона\" value=\"{{ phone }}\" required>\r\n    <input type=\"text\" name=\"city\" placeholder=\"Город\" value=\"{{ city }}\" required>\r\n    <input type=\"date\" name=\"birth_date\" value=\"{{ birth_date }}\" required>\r\n\r\n    <select name=\"role\" required>\r\n        <option value=\"\" disabled {% if not role %}selected{% endif %}>Ваша роль</option>\r\n        <option value=\"customer\" {% if role == 'customer' %}selected{% endif %}>Заказчик</option>\r\n        <option value=\"executor\" {% if role == 'executor' %}selected{% endif %}>Исполнитель</option>\r\n    </select>\r\n\r\n    <button type=\"submit\">Регистрация</button>\r\n</form>\r\n\r\n<p>Уже есть аккаунт? <a href=\"{% url 'login' %}\">Войти</a></p>\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/register.html b/prg/app/templates/register.html
+--- a/prg/app/templates/register.html	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/templates/register.html	(date 1745075077993)
+@@ -1,37 +1,26 @@
+-{# templates/register.html #}
+-
+-<h2>Регистрация</h2>
+-
+-{% if messages %}
+-  <ul class="messages">
+-    {% for message in messages %}
+-      <li class="{{ message.tags }}">{{ message }}</li>
+-    {% endfor %}
+-  </ul>
+-{% endif %}
+-
++<h2>Register</h2>
+ <form method="post">
+     {% csrf_token %}
+-    <input type="text" name="last_name" placeholder="Фамилия" value="{{ last_name }}" required>
+-    <input type="text" name="first_name" placeholder="Имя" value="{{ first_name }}" required>
+-    <input type="text" name="middle_name" placeholder="Отчество" value="{{ middle_name }}">
+ 
+-    <input type="text" name="username" placeholder="Логин" value="{{ username }}" required>
+-    <input type="email" name="email" placeholder="Email" value="{{ email }}" required>
++    <input type="text" name="last_name" placeholder="Фамилия" required>
++    <input type="text" name="first_name" placeholder="Имя" required>
++    <input type="text" name="middle_name" placeholder="Отчество">
++
++    <input type="text" name="username" placeholder="Логин" required>
++    <input type="email" name="email" placeholder="Email" required>
+     <input type="password" name="password" placeholder="Пароль" required>
+     <input type="password" name="password_confirm" placeholder="Повторите пароль" required>
+ 
+-    <input type="tel" name="phone" placeholder="Номер телефона" value="{{ phone }}" required>
+-    <input type="text" name="city" placeholder="Город" value="{{ city }}" required>
+-    <input type="date" name="birth_date" value="{{ birth_date }}" required>
++    <input type="tel" name="phone" placeholder="Номер телефона" required>
++    <input type="text" name="city" placeholder="Город" required>
++    <input type="date" name="birth_date" placeholder="Дата рождения" required>
+ 
+     <select name="role" required>
+-        <option value="" disabled {% if not role %}selected{% endif %}>Ваша роль</option>
+-        <option value="customer" {% if role == 'customer' %}selected{% endif %}>Заказчик</option>
+-        <option value="executor" {% if role == 'executor' %}selected{% endif %}>Исполнитель</option>
++        <option value="" disabled selected>Ваша роль</option>
++        <option value="customer">Заказчик</option>
++        <option value="executor">Исполнитель</option>
+     </select>
+ 
+     <button type="submit">Регистрация</button>
+ </form>
+-
+-<p>Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
++<p>Есть аккаунт <a href="/login/">Логин</a></p>
+\ No newline at end of file
+Index: prg/app/models.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.db import models\r\nfrom django.contrib.auth.models import User\r\n\r\nclass Profile(models.Model):\r\n    user = models.OneToOneField(User, on_delete=models.CASCADE)\r\n    middle_name = models.CharField(max_length=100, blank=True)\r\n    phone = models.CharField(max_length=20)\r\n    city = models.CharField(max_length=100)\r\n    birth_date = models.DateField()\r\n    role = models.CharField(max_length=20, choices=[\r\n        ('customer', 'Заказчик'),\r\n        ('executor', 'Исполнитель'),\r\n    ])\r\n\r\n    def __str__(self):\r\n        return f\"{self.user.username}'s Profile\"\r\n    \r\n\r\nclass Service(models.Model):\r\n    author = models.ForeignKey(User, on_delete=models.CASCADE)\r\n    title = models.CharField(max_length=200)\r\n    description = models.TextField()\r\n    price = models.DecimalField(max_digits=10, decimal_places=2)\r\n    image = models.ImageField(upload_to='services/')\r\n    created_at = models.DateTimeField(auto_now_add=True)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/models.py b/prg/app/models.py
+--- a/prg/app/models.py	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/models.py	(date 1745075074241)
+@@ -22,4 +22,5 @@
+     description = models.TextField()
+     price = models.DecimalField(max_digits=10, decimal_places=2)
+     image = models.ImageField(upload_to='services/')
+-    created_at = models.DateTimeField(auto_now_add=True)
+\ No newline at end of file
++    created_at = models.DateTimeField(auto_now_add=True)
++
+Index: prg/app/templates/profile.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><!DOCTYPE html>\r\n<html lang=\"en\">\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n    <link rel=\"stylesheet\" href=\"../static/css/profile.css\">\r\n    <title>Document</title>\r\n</head>\r\n<body>\r\n    <h1>Профиль пользователя</h1>\r\n<div class=\"profile-info\">\r\n    <p><strong>ФИО:</strong> {{ user.last_name }} {{ user.first_name }} {{ profile.middle_name|default:\"\" }}</p>\r\n    <p><strong>Логин:</strong> {{ user.username }}</p>\r\n    <p><strong>Email:</strong> {{ user.email }}</p>\r\n    <p><strong>Телефон:</strong> {{ profile.phone }}</p>\r\n    <p><strong>Город:</strong> {{ profile.city }}</p>\r\n    <p><strong>Дата рождения:</strong> {{ profile.birth_date|date:\"d.m.Y\" }}</p>\r\n    <p><strong>Роль:</strong> \r\n        {% if profile.role == 'customer' %}Заказчик{% else %}Исполнитель{% endif %}\r\n    </p>\r\n</div>\r\n<div class=\"container\">\r\n    <div class=\"column\" id=\"todo\" ondrop=\"drop(event)\" ondragover=\"allowDrop(event)\">\r\n        <h2>TODO</h2>\r\n        <button onclick=\"addCard('todo')\">Add Card</button>\r\n    </div>\r\n    <div class=\"column\" id=\"inprogress\" ondrop=\"drop(event)\" ondragover=\"allowDrop(event)\">\r\n        <h2>In Progress</h2>\r\n        <button onclick=\"addCard('inprogress')\">Add Card</button>\r\n    </div>\r\n    <div class=\"column\" id=\"done\" ondrop=\"drop(event)\" ondragover=\"allowDrop(event)\">\r\n        <h2>Done</h2>\r\n        <button onclick=\"addCard('done')\">Add Card</button>\r\n    </div>\r\n</div>\r\n<script src=\"../static/js/kanban.js\"></script>\r\n<a href=\"/\">На главную</a> | <a href=\"/logout/\">Выйти</a>\r\n</body>\r\n</html>\r\n\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/profile.html b/prg/app/templates/profile.html
+--- a/prg/app/templates/profile.html	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/templates/profile.html	(date 1745075077832)
+@@ -1,41 +1,84 @@
++{% load static %}
+ <!DOCTYPE html>
+-<html lang="en">
++<html lang="ru">
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <link rel="stylesheet" href="../static/css/profile.css">
+-    <title>Document</title>
++    <title>Профиль</title>
++    <link rel="preconnect" href="https://fonts.googleapis.com">
++    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
++    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
++    <link rel="stylesheet" href="{% static 'css/profile.css' %}">
+ </head>
+ <body>
+-    <h1>Профиль пользователя</h1>
+-<div class="profile-info">
+-    <p><strong>ФИО:</strong> {{ user.last_name }} {{ user.first_name }} {{ profile.middle_name|default:"" }}</p>
+-    <p><strong>Логин:</strong> {{ user.username }}</p>
+-    <p><strong>Email:</strong> {{ user.email }}</p>
+-    <p><strong>Телефон:</strong> {{ profile.phone }}</p>
+-    <p><strong>Город:</strong> {{ profile.city }}</p>
+-    <p><strong>Дата рождения:</strong> {{ profile.birth_date|date:"d.m.Y" }}</p>
+-    <p><strong>Роль:</strong> 
+-        {% if profile.role == 'customer' %}Заказчик{% else %}Исполнитель{% endif %}
+-    </p>
+-</div>
+-<div class="container">
+-    <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
+-        <h2>TODO</h2>
+-        <button onclick="addCard('todo')">Add Card</button>
+-    </div>
+-    <div class="column" id="inprogress" ondrop="drop(event)" ondragover="allowDrop(event)">
+-        <h2>In Progress</h2>
+-        <button onclick="addCard('inprogress')">Add Card</button>
+-    </div>
+-    <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+-        <h2>Done</h2>
+-        <button onclick="addCard('done')">Add Card</button>
+-    </div>
+-</div>
+-<script src="../static/js/kanban.js"></script>
+-<a href="/">На главную</a> | <a href="/logout/">Выйти</a>
++    <header class="profile-header">
++        <img src="{% static 'images/logotype.svg' %}" alt="Study Size" class="logo">
++        <div class="header-actions">
++            <a href="/" class="home-link">На главную</a>
++            <a href="/logout/" class="logout-btn">Выйти</a>
++        </div>
++    </header>
++
++    <main class="profile-main">
++        <section class="user-card animate-fade-in">
++            <div class="user-avatar">
++                <div class="avatar-circle"></div>
++            </div>
++            <div class="user-info">
++                <h1 class="user-name">{{ user.last_name }} {{ user.first_name }} <span>{{ profile.middle_name|default:"" }}</span></h1>
++                <p class="user-role">
++                    {% if profile.role == 'customer' %}Заказчик{% else %}Исполнитель{% endif %}
++                </p>
++            </div>
++        </section>
++
++        <section class="profile-details animate-slide-up">
++            <div class="detail-card">
++                <h3><i class="icon-user"></i> Основная информация</h3>
++                <div class="detail-grid">
++                    <div class="detail-item">
++                        <span class="detail-label">Логин:</span>
++                        <span class="detail-value">{{ user.username }}</span>
++                    </div>
++                    <div class="detail-item">
++                        <span class="detail-label">Email:</span>
++                        <span class="detail-value">{{ user.email }}</span>
++                    </div>
++                    <div class="detail-item">
++                        <span class="detail-label">Телефон:</span>
++                        <span class="detail-value">{{ profile.phone }}</span>
++                    </div>
++                    <div class="detail-item">
++                        <span class="detail-label">Город:</span>
++                        <span class="detail-value">{{ profile.city }}</span>
++                    </div>
++                    <div class="detail-item">
++                        <span class="detail-label">Дата рождения:</span>
++                        <span class="detail-value">{{ profile.birth_date|date:"d.m.Y" }}</span>
++                    </div>
++                </div>
++            </div>
++        </section>
++
++        <section class="kanban-section animate-slide-up">
++            <div class="container">
++                <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
++                    <h2>TODO</h2>
++                    <button onclick="addCard('todo')">Add Card</button>
++                </div>
++                <div class="column" id="inprogress" ondrop="drop(event)" ondragover="allowDrop(event)">
++                    <h2>In Progress</h2>
++                    <button onclick="addCard('inprogress')">Add Card</button>
++                </div>
++                <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
++                    <h2>Done</h2>
++                    <button onclick="addCard('done')">Add Card</button>
++                </div>
++            </div>
++        </section>
++    </main>
++
++    <script src="{% static 'js/kanban.js' %}"></script>
++    <script src="{% static 'js/profile.js' %}"></script>
+ </body>
+-</html>
+-
+-
++</html>
+\ No newline at end of file
+Index: prg/app/templates/check_your_gmail.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/check_your_gmail.html b/prg/app/templates/check_your_gmail.html
+new file mode 100644
+--- /dev/null	(date 1745074282017)
++++ b/prg/app/templates/check_your_gmail.html	(date 1745074282017)
+@@ -0,0 +1,20 @@
++{# templates/check_your_gmail.html #}
++
++<!DOCTYPE html>
++<html lang="ru">
++<head>
++  <meta charset="UTF-8">
++  <title>Проверьте вашу почту</title>
++</head>
++<body>
++  <h1>Проверьте вашу почту</h1>
++  <p>
++    На указанный вами адрес отправлено письмо со ссылкой для активации аккаунта.
++    Пожалуйста, откройте вашу почту и перейдите по этой ссылке.
++  </p>
++  <p>
++    Если письмо не пришло, проверьте папку «Спам» или 
++    <a href="{% url 'register' %}">отправьте форму регистрации заново</a>.
++  </p>
++</body>
++</html>
+Index: prg/app/templates/login.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% load static %}\r\n\r\n<!DOCTYPE html>\r\n<html lang=\"ru\">\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n    <title>Study Size - Вход</title>\r\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\r\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\r\n    <link href=\"https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap\" rel=\"stylesheet\">\r\n    <link rel=\"stylesheet\" href=\"{% static 'css/login.css' %}\">\r\n</head>\r\n<body>\r\n<div class=\"notification-container\"></div>\r\n\r\n<div class=\"container fade-in\">\r\n    <div class=\"form-container\">\r\n        <div class=\"login-form\">\r\n            <img src=\"{% static 'images/logotype.svg' %}\" alt=\"Study Size\" class=\"logo\">\r\n            <h2 class=\"form-title\">Вход</h2>\r\n            <p class=\"register-link\">Еще нет аккаунта? <a href=\"/register/\">Зарегистрироваться</a></p>\r\n\r\n            <form method=\"post\" class=\"auth-form\">\r\n                {% csrf_token %}\r\n\r\n                <div class=\"form-group\">\r\n                    <label class=\"input-label\">Логин</label>\r\n                    <input type=\"text\" name=\"username\" placeholder=\"Введите логин\" required>\r\n                </div>\r\n\r\n                <div class=\"form-group password-group\">\r\n                    <label class=\"input-label\">Пароль</label>\r\n                    <div class=\"password-wrapper\">\r\n                        <input type=\"password\" name=\"password\" id=\"password-field\" placeholder=\"Введите пароль\"\r\n                               required>\r\n                        <span class=\"password-toggle\">\r\n                                <svg class=\"eye-icon\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"20\"\r\n                                     height=\"20\">\r\n                                    <path d=\"M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5z\"/>\r\n                                </svg>\r\n                            </span>\r\n                    </div>\r\n                </div>\r\n\r\n                <div class=\"remember-me\">\r\n                    <input type=\"checkbox\" id=\"remember\" name=\"remember\">\r\n                    <label for=\"remember\">Запомнить меня</label>\r\n                </div>\r\n\r\n                <button type=\"submit\" class=\"submit-btn\">Войти</button>\r\n            </form>\r\n        </div>\r\n\r\n        <div class=\"welcome-section\">\r\n            <img src=\"{% static 'images/round.svg' %}\" alt=\"\" class=\"round-image\">\r\n            <h2>Добро пожаловать</h2>\r\n            <p class=\"welcome-text\">\r\n                Биржа взаимопомощи для студентов и специалистов: <span class=\"highlight\">найди репетитора</span>,\r\n                <span class=\"highlight\">закажи перевод</span>, <span class=\"highlight\">оформи лабораторную</span>\r\n                или <span class=\"highlight\">презентацию</span>. Всё — с безопасной оплатой и проверенными исполнителями.\r\n            </p>\r\n        </div>\r\n    </div>\r\n</div>\r\n<div class=\"error-container\"></div>\r\n\r\n<script src=\"{% static 'js/login.js' %}\"></script>\r\n</body>\r\n</html>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/templates/login.html b/prg/app/templates/login.html
+--- a/prg/app/templates/login.html	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/templates/login.html	(date 1745075077571)
+@@ -5,7 +5,7 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-    <title>Study Size - Вход</title>
++    <title>Вход</title>
+     <link rel="preconnect" href="https://fonts.googleapis.com">
+     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+Index: prg/app/static/css/login.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>:root {\r\n    --primary-color: #6e8efb;\r\n    --text-color: #333;\r\n    --light-gray: #f5f5f5;\r\n    --border-color: #ddd;\r\n}\r\n\r\n* {\r\n    box-sizing: border-box;\r\n    margin: 0;\r\n    padding: 0;\r\n}\r\n\r\nbody {\r\n    font-family: 'Roboto', sans-serif;\r\n    font-weight: 400;\r\n    margin: 0;\r\n    padding: 0;\r\n    background-color: var(--light-gray);\r\n    color: var(--text-color);\r\n}\r\n\r\n.notification-container {\r\n    position: fixed;\r\n    top: 20px;\r\n    right: 20px;\r\n    z-index: 1000;\r\n}\r\n\r\n.error-container {\r\n    position: fixed;\r\n    bottom: 20px;\r\n    left: 50%;\r\n    transform: translateX(-50%);\r\n    z-index: 1000;\r\n    width: 90%;\r\n    max-width: 400px;\r\n}\r\n\r\n.field-error {\r\n    padding: 12px 16px;\r\n    margin-bottom: 10px;\r\n    background: #ff4444;\r\n    color: white;\r\n    border-radius: 6px;\r\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);\r\n    display: flex;\r\n    align-items: center;\r\n    position: relative;\r\n    overflow: hidden;\r\n    animation: slideIn 0.3s ease-out;\r\n}\r\n\r\n.field-error .progress-bar {\r\n    position: absolute;\r\n    bottom: 0;\r\n    left: 0;\r\n    height: 3px;\r\n    background: rgba(255, 255, 255, 0.5);\r\n    animation: progress 3s linear forwards;\r\n}\r\n\r\n@keyframes slideIn {\r\n    from {\r\n        transform: translateY(20px);\r\n        opacity: 0;\r\n    }\r\n    to {\r\n        transform: translateY(0);\r\n        opacity: 1;\r\n    }\r\n}\r\n\r\n@keyframes slideOut {\r\n    from {\r\n        transform: translateY(0);\r\n        opacity: 1;\r\n    }\r\n    to {\r\n        transform: translateY(-20px);\r\n        opacity: 0;\r\n    }\r\n}\r\n\r\n.notification {\r\n    padding: 15px 20px;\r\n    margin-bottom: 10px;\r\n    border-radius: 4px;\r\n    color: white;\r\n    display: flex;\r\n    align-items: center;\r\n    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);\r\n    position: relative;\r\n    overflow: hidden;\r\n}\r\n\r\n.notification.error {\r\n    background-color: #ff4444;\r\n}\r\n\r\n.notification.success {\r\n    background-color: #00C851;\r\n}\r\n\r\n.notification .progress-bar {\r\n    position: absolute;\r\n    bottom: 0;\r\n    left: 0;\r\n    height: 4px;\r\n    background-color: rgba(255, 255, 255, 0.5);\r\n    animation: progress 3s linear forwards;\r\n}\r\n\r\n@keyframes progress {\r\n    from {\r\n        width: 100%;\r\n    }\r\n    to {\r\n        width: 0%;\r\n    }\r\n}\r\n\r\n.container {\r\n    display: flex;\r\n    justify-content: center;\r\n    align-items: center;\r\n    min-height: 100vh;\r\n    padding: 20px;\r\n}\r\n\r\n.form-container {\r\n    display: flex;\r\n    max-width: 1200px;\r\n    width: 100%;\r\n    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);\r\n    border-radius: 10px;\r\n    overflow: hidden;\r\n    background: white;\r\n    flex-wrap: wrap;\r\n}\r\n\r\n.login-form {\r\n    width: 50%;\r\n    padding: 40px;\r\n    display: flex;\r\n    flex-direction: column;\r\n    justify-content: center;\r\n}\r\n\r\n.logo {\r\n    width: 180px;\r\n    margin: 0 auto 30px;\r\n    display: block;\r\n}\r\n\r\n.form-title {\r\n    text-align: center;\r\n    margin-bottom: 30px;\r\n    font-weight: 400;\r\n    font-size: 24px;\r\n}\r\n\r\n.auth-form {\r\n    width: 100%;\r\n    max-width: 350px;\r\n    margin: 0 auto;\r\n}\r\n\r\n.form-group {\r\n    margin-bottom: 20px;\r\n}\r\n\r\n.form-group input {\r\n    width: 100%;\r\n    padding: 12px 15px;\r\n    border: 1px solid var(--border-color);\r\n    border-radius: 6px;\r\n    font-size: 15px;\r\n    font-family: 'Roboto', sans-serif;\r\n    font-weight: 400;\r\n    transition: border-color 0.3s;\r\n}\r\n\r\n.form-group input:focus {\r\n    border-color: var(--primary-color);\r\n    outline: none;\r\n}\r\n\r\n.remember-me {\r\n    display: flex;\r\n    align-items: center;\r\n    margin-bottom: 25px;\r\n    font-size: 14px;\r\n}\r\n\r\n.remember-me input {\r\n    margin-right: 10px;\r\n    width: 16px;\r\n    height: 16px;\r\n    accent-color: var(--primary-color);\r\n}\r\n\r\n.remember-me label {\r\n    cursor: pointer;\r\n}\r\n\r\n.submit-btn {\r\n    width: 100%;\r\n    padding: 14px;\r\n    background-color: var(--primary-color);\r\n    color: white;\r\n    border: none;\r\n    border-radius: 6px;\r\n    font-size: 16px;\r\n    font-family: 'Roboto', sans-serif;\r\n    font-weight: 400;\r\n    cursor: pointer;\r\n    transition: background-color 0.3s;\r\n}\r\n\r\n.submit-btn:hover {\r\n    background-color: #5a7df5;\r\n}\r\n\r\n.register-link {\r\n    color: #666;\r\n    margin-bottom: 30px;\r\n    text-align: center;\r\n    font-size: 14px;\r\n}\r\n\r\n.register-link a {\r\n    color: var(--primary-color);\r\n    text-decoration: none;\r\n}\r\n\r\n.register-link a:hover {\r\n    text-decoration: underline;\r\n}\r\n\r\n.welcome-section {\r\n    width: 50%;\r\n    padding: 40px;\r\n    background: linear-gradient(135deg, #f9f9f9, #f0f0f0);\r\n    display: flex;\r\n    flex-direction: column;\r\n    align-items: center;\r\n    justify-content: center;\r\n    text-align: center;\r\n}\r\n\r\n.round-image {\r\n    width: 180px;\r\n    height: 180px;\r\n    margin-bottom: 30px;\r\n    animation: colorPulse 6s infinite alternate;\r\n}\r\n\r\n.welcome-text {\r\n    line-height: 1.6;\r\n    max-width: 400px;\r\n    font-size: 15px;\r\n}\r\n\r\n.highlight {\r\n    color: var(--primary-color);\r\n}\r\n\r\n.input-label {\r\n    display: block;\r\n    margin-bottom: 8px;\r\n    font-size: 14px;\r\n    color: #333;\r\n}\r\n\r\n.password-group {\r\n    position: relative;\r\n    margin-bottom: 25px;\r\n}\r\n\r\n.password-wrapper {\r\n    position: relative;\r\n}\r\n\r\n.password-toggle {\r\n    position: absolute;\r\n    right: 12px;\r\n    top: 50%;\r\n    transform: translateY(-50%);\r\n    cursor: pointer;\r\n    color: #999;\r\n    transition: color 0.3s;\r\n}\r\n\r\n.password-toggle:hover {\r\n    color: #6e8efb;\r\n}\r\n\r\n.eye-icon {\r\n    display: block;\r\n    fill: currentColor;\r\n}\r\n\r\n@keyframes colorPulse {\r\n    0% {\r\n        filter: hue-rotate(0deg);\r\n    }\r\n    100% {\r\n        filter: hue-rotate(20deg);\r\n    }\r\n}\r\n\r\n@keyframes fadeIn {\r\n    from {\r\n        opacity: 0;\r\n    }\r\n    to {\r\n        opacity: 1;\r\n    }\r\n}\r\n\r\n.fade-in {\r\n    animation: fadeIn 0.5s ease-in;\r\n}\r\n\r\n@media (max-width: 992px) {\r\n    .form-container {\r\n        flex-direction: column;\r\n    }\r\n\r\n    .login-form,\r\n    .welcome-section {\r\n        width: 100%;\r\n        padding: 30px;\r\n    }\r\n\r\n    .auth-form {\r\n        max-width: 100%;\r\n    }\r\n\r\n    .logo {\r\n        width: 150px;\r\n        margin-bottom: 20px;\r\n    }\r\n\r\n    .round-image {\r\n        width: 150px;\r\n        height: 150px;\r\n        margin-bottom: 20px;\r\n    }\r\n}\r\n\r\n@media (max-width: 576px) {\r\n    .container {\r\n        padding: 10px;\r\n    }\r\n\r\n    .form-container {\r\n        border-radius: 8px;\r\n    }\r\n\r\n    .login-form,\r\n    .welcome-section {\r\n        padding: 20px;\r\n    }\r\n\r\n    .form-title {\r\n        font-size: 20px;\r\n        margin-bottom: 20px;\r\n    }\r\n\r\n    .welcome-text {\r\n        font-size: 14px;\r\n    }\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/static/css/login.css b/prg/app/static/css/login.css
+--- a/prg/app/static/css/login.css	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/static/css/login.css	(date 1745075075673)
+@@ -27,6 +27,21 @@
+     z-index: 1000;
+ }
+ 
++.error-message {
++    display: none;
++    color: #ff4444;
++    font-size: 13px;
++    margin-top: 5px;
++}
++
++input:invalid {
++    border-color: #ff4444 !important;
++}
++
++input:invalid + .error-message {
++    display: block;
++}
++
+ .error-container {
+     position: fixed;
+     bottom: 20px;
+Index: requirements.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>asgiref==3.8.1\r\nDjango==5.2\r\nsqlparse==0.5.3\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/requirements.txt b/requirements.txt
+--- a/requirements.txt	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/requirements.txt	(date 1745075079773)
+@@ -1,3 +1,4 @@
+ asgiref==3.8.1
+ Django==5.2
++pillow==11.2.1
+ sqlparse==0.5.3
+Index: prg/app/static/css/profile.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>body {\r\n    font-family: Arial, sans-serif;\r\n    display: flex;\r\n    flex-direction: column;\r\n    justify-content: flex-start;\r\n    align-items: center;\r\n    min-height: 100vh;\r\n    margin: 0;\r\n    background-color: #f4f4f4;\r\n    transition: background-color 0.3s ease;\r\n}\r\n\r\nbody.dark-mode {\r\n    background-color: #333;\r\n    color: #fff;\r\n}\r\n\r\n.container {\r\n    display: flex;\r\n    width: 80%;\r\n    height: 80%;\r\n    background-color: #fff;\r\n    border-radius: 10px;\r\n    overflow: hidden;\r\n    margin-top: 20px;\r\n    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);\r\n    transition: background-color 0.3s ease;\r\n}\r\n\r\nbody.dark-mode .container {\r\n    background-color: #444;\r\n    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);\r\n}\r\n\r\n.column {\r\n    flex: 1;\r\n    padding: 20px;\r\n    border-right: 1px solid #ddd;\r\n    overflow-y: auto;\r\n    transition: border-color 0.3s ease;\r\n}\r\n\r\nbody.dark-mode .column {\r\n    border-color: #666;\r\n}\r\n\r\n.column:last-child {\r\n    border-right: none;\r\n}\r\n\r\n.column h2 {\r\n    text-align: center;\r\n    margin-bottom: 20px;\r\n    color: #333;\r\n    transition: color 0.3s ease;\r\n}\r\n\r\nbody.dark-mode .column h2 {\r\n    color: #fff;\r\n}\r\n\r\n.card {\r\n    background-color: #f9f9f9;\r\n    border: 1px solid #ddd;\r\n    padding: 10px;\r\n    margin-bottom: 10px;\r\n    border-radius: 5px;\r\n    cursor: grab;\r\n    transition: background-color 0.3s ease, border-color 0.3s ease;\r\n}\r\n\r\nbody.dark-mode .card {\r\n    background-color: #555;\r\n    border-color: #777;\r\n    color: #fff;\r\n}\r\n\r\n.card:active {\r\n    cursor: grabbing;\r\n}\r\n\r\nbutton {\r\n    display: block;\r\n    margin: 10px auto;\r\n    padding: 8px 16px;\r\n    background-color: #5cb85c;\r\n    color: white;\r\n    border: none;\r\n    border-radius: 4px;\r\n    cursor: pointer;\r\n    transition: background-color 0.3s ease;\r\n}\r\n\r\nbody.dark-mode button {\r\n    background-color: #777;\r\n}\r\n\r\nbutton:hover {\r\n    background-color: #4cae4c;\r\n}\r\n\r\nbody.dark-mode button:hover {\r\n    background-color: #666;\r\n}\r\n\r\n#theme-toggle {\r\n    position: fixed;\r\n    top: 10px;\r\n    right: 10px;\r\n    padding: 8px 16px;\r\n    background-color: #007bff;\r\n    color: white;\r\n    border: none;\r\n    border-radius: 4px;\r\n    cursor: pointer;\r\n    transition: background-color 0.3s ease;\r\n}\r\n\r\n#theme-toggle:hover {\r\n    background-color: #0056b3;\r\n}\r\n\r\nbody.dark-mode #theme-toggle {\r\n    background-color: #222;\r\n    color: #fff;\r\n}\r\n\r\nbody.dark-mode #theme-toggle:hover {\r\n    background-color: #555;\r\n}\r\n\r\n.delete-button {\r\n    background-color: #d9534f;\r\n    color: white;\r\n    border: none;\r\n    padding: 5px 10px;\r\n    border-radius: 4px;\r\n    cursor: pointer;\r\n    margin-left: 5px;\r\n    transition: background-color 0.3s ease;\r\n}\r\n\r\n.delete-button:hover {\r\n    background-color: #c9302c;\r\n}\r\n\r\nbody.dark-mode .delete-button {\r\n    background-color: #999;\r\n}\r\n\r\nbody.dark-mode .delete-button:hover {\r\n    background-color: #888;\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/static/css/profile.css b/prg/app/static/css/profile.css
+--- a/prg/app/static/css/profile.css	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/static/css/profile.css	(date 1745075075794)
+@@ -1,35 +1,209 @@
++:root {
++    --primary-color: #6e8efb;
++    --secondary-color: #a777e3;
++    --text-color: #333;
++    --light-bg: #f9f9f9;
++    --card-bg: #ffffff;
++    --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
++}
++
++* {
++    margin: 0;
++    padding: 0;
++    box-sizing: border-box;
++}
++
+ body {
+-    font-family: Arial, sans-serif;
++    font-family: 'Roboto', sans-serif;
++    background-color: var(--light-bg);
++    color: var(--text-color);
++    line-height: 1.6;
++}
++
++.profile-header {
+     display: flex;
+-    flex-direction: column;
+-    justify-content: flex-start;
++    justify-content: space-between;
+     align-items: center;
+-    min-height: 100vh;
+-    margin: 0;
+-    background-color: #f4f4f4;
+-    transition: background-color 0.3s ease;
++    padding: 20px 40px;
++    background: white;
++    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
++}
++
++.logo {
++    height: 40px;
++    transition: transform 0.3s ease;
++}
++
++.logo:hover {
++    transform: scale(1.05);
++}
++
++.header-actions {
++    display: flex;
++    gap: 20px;
++}
++
++.home-link, .logout-btn {
++.home-link, .logout-btn {
++    color: white;
++    text-decoration: none;
++    padding: 8px 16px;
++    border-radius: 20px;
++    transition: all 0.3s ease;
++    background: var(--primary-color);
++    border: 1px solid var(--primary-color);
++}
++
++.home-link:hover, .logout-btn:hover {
++    background: var(--secondary-color);
++    transform: translateY(-2px);
++    box-shadow: 0 4px 8px rgba(103, 58, 183, 0.3);
++}
++
++.profile-main {
++    padding: 30px;
++    max-width: 1200px;
++    margin: 0 auto;
++}
++
++.user-card {
++    display: flex;
++    align-items: center;
++    background: var(--card-bg);
++    border-radius: 15px;
++    padding: 30px;
++    margin-bottom: 30px;
++    box-shadow: var(--shadow);
++    transition: transform 0.3s ease;
++}
++
++.user-card:hover {
++    transform: translateY(-5px);
++}
++
++.user-avatar {
++    margin-right: 30px;
++    position: relative;
++}
++
++.avatar-circle {
++    width: 120px;
++    height: 120px;
++    border-radius: 50%;
++    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    color: white;
++    font-size: 48px;
++    font-weight: 300;
++    animation: pulse 2s infinite alternate;
++}
++
++.user-name {
++    font-size: 32px;
++    font-weight: 500;
++    margin-bottom: 5px;
++    color: var(--text-color);
++}
++
++.user-name span {
++    font-weight: 300;
++}
++
++.user-role {
++    font-size: 18px;
++    color: var(--secondary-color);
++    font-weight: 300;
++}
++
++.profile-details {
++    margin-bottom: 40px;
++}
++
++.detail-card {
++    background: var(--card-bg);
++    border-radius: 15px;
++    padding: 30px;
++    box-shadow: var(--shadow);
++}
++
++.detail-card h3 {
++    font-size: 20px;
++    margin-bottom: 20px;
++    color: var(--primary-color);
++    display: flex;
++    align-items: center;
++}
++
++.icon-user {
++    display: inline-block;
++    width: 24px;
++    height: 24px;
++    margin-right: 10px;
++    background: var(--primary-color);
++    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E") no-repeat center;
++}
++
++.detail-grid {
++    display: grid;
++    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
++    gap: 20px;
++}
++
++.detail-item {
++    display: flex;
++    flex-direction: column;
++}
++
++.detail-label {
++    font-size: 14px;
++    color: #666;
++    margin-bottom: 5px;
++}
++
++.detail-value {
++    font-size: 16px;
++    font-weight: 500;
+ }
+ 
+-body.dark-mode {
+-    background-color: #333;
+-    color: #fff;
++.kanban-section {
++    margin-top: 40px;
+ }
+ 
++@keyframes pulse {
++    0% { transform: scale(1); }
++    100% { transform: scale(1.05); }
++}
++
++@keyframes fadeIn {
++    from { opacity: 0; }
++    to { opacity: 1; }
++}
++
++@keyframes slideUp {
++    from { transform: translateY(20px); opacity: 0; }
++    to { transform: translateY(0); opacity: 1; }
++}
++
++.animate-fade-in {
++    animation: fadeIn 0.8s ease-out;
++}
++
++.animate-slide-up {
++    animation: slideUp 0.8s ease-out;
++}
++
++/* Стили для Kanban доски */
+ .container {
+     display: flex;
+-    width: 80%;
++    width: 100%;
+     height: 80%;
+-    background-color: #fff;
++    background-color: var(--card-bg);
+     border-radius: 10px;
+     overflow: hidden;
+     margin-top: 20px;
+-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+-    transition: background-color 0.3s ease;
+-}
+-
+-body.dark-mode .container {
+-    background-color: #444;
+-    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
++    box-shadow: var(--shadow);
+ }
+ 
+ .column {
+@@ -37,11 +211,6 @@
+     padding: 20px;
+     border-right: 1px solid #ddd;
+     overflow-y: auto;
+-    transition: border-color 0.3s ease;
+-}
+-
+-body.dark-mode .column {
+-    border-color: #666;
+ }
+ 
+ .column:last-child {
+@@ -51,12 +220,7 @@
+ .column h2 {
+     text-align: center;
+     margin-bottom: 20px;
+-    color: #333;
+-    transition: color 0.3s ease;
+-}
+-
+-body.dark-mode .column h2 {
+-    color: #fff;
++    color: var(--text-color);
+ }
+ 
+ .card {
+@@ -66,13 +230,6 @@
+     margin-bottom: 10px;
+     border-radius: 5px;
+     cursor: grab;
+-    transition: background-color 0.3s ease, border-color 0.3s ease;
+-}
+-
+-body.dark-mode .card {
+-    background-color: #555;
+-    border-color: #777;
+-    color: #fff;
+ }
+ 
+ .card:active {
+@@ -83,71 +240,74 @@
+     display: block;
+     margin: 10px auto;
+     padding: 8px 16px;
+-    background-color: #5cb85c;
+-    color: white;
+-    border: none;
++    background-color: white;
++    color: var(--primary-color);
++    border: 1px solid var(--primary-color);
+     border-radius: 4px;
+     cursor: pointer;
+-    transition: background-color 0.3s ease;
+-}
+-
+-body.dark-mode button {
+-    background-color: #777;
++    transition: all 0.3s ease;
+ }
+ 
+ button:hover {
+-    background-color: #4cae4c;
+-}
+-
+-body.dark-mode button:hover {
+-    background-color: #666;
+-}
+-
+-#theme-toggle {
+-    position: fixed;
+-    top: 10px;
+-    right: 10px;
+-    padding: 8px 16px;
+-    background-color: #007bff;
++    background-color: var(--primary-color);
+     color: white;
+-    border: none;
+-    border-radius: 4px;
+-    cursor: pointer;
+-    transition: background-color 0.3s ease;
+-}
+-
+-#theme-toggle:hover {
+-    background-color: #0056b3;
+-}
+-
+-body.dark-mode #theme-toggle {
+-    background-color: #222;
+-    color: #fff;
+-}
+-
+-body.dark-mode #theme-toggle:hover {
+-    background-color: #555;
++    transform: translateY(-2px);
+ }
+ 
+ .delete-button {
+-    background-color: #d9534f;
+-    color: white;
+-    border: none;
++    background-color: white;
++    color: #ff4444;
++    border: 1px solid #ff4444;
+     padding: 5px 10px;
+     border-radius: 4px;
+     cursor: pointer;
+     margin-left: 5px;
+-    transition: background-color 0.3s ease;
++    transition: all 0.3s ease;
+ }
+ 
+ .delete-button:hover {
+-    background-color: #c9302c;
++    background-color: #ff4444;
++    color: white;
++    transform: scale(1.05);
+ }
++
++/* Адаптивность */
++@media (max-width: 768px) {
++    .profile-header {
++        flex-direction: column;
++        padding: 15px;
++    }
++
++    .header-actions {
++        margin-top: 15px;
++    }
++
++    .user-card {
++        flex-direction: column;
++        text-align: center;
++        padding: 20px;
++    }
++
++    .user-avatar {
++        margin-right: 0;
++        margin-bottom: 20px;
++    }
++
++    .detail-grid {
++        grid-template-columns: 1fr;
++    }
+ 
+-body.dark-mode .delete-button {
+-    background-color: #999;
+-}
++    .container {
++        flex-direction: column;
++        height: auto;
++    }
+ 
+-body.dark-mode .delete-button:hover {
+-    background-color: #888;
+-}
++    .column {
++        border-right: none;
++        border-bottom: 1px solid #ddd;
++    }
++
++    .column:last-child {
++        border-bottom: none;
++    }
++}}
+\ No newline at end of file
+Index: prg/app/static/js/login.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>document.addEventListener('DOMContentLoaded', function() {\r\n    document.body.classList.add('fade-in');\r\n\r\n    const form = document.querySelector('.auth-form');\r\n    const notificationContainer = document.querySelector('.notification-container');\r\n\r\n    function showNotification(message, type) {\r\n        const notification = document.createElement('div');\r\n        notification.className = `notification ${type}`;\r\n        notification.innerHTML = `\r\n            ${message}\r\n            <div class=\"progress-bar\"></div>\r\n        `;\r\n\r\n        notificationContainer.appendChild(notification);\r\n\r\n        setTimeout(() => {\r\n            notification.style.opacity = '0';\r\n            setTimeout(() => notification.remove(), 300);\r\n        }, 3000);\r\n    }\r\n\r\n    if (form) {\r\n        form.addEventListener('submit', function(e) {\r\n            const username = form.querySelector('[name=\"username\"]').value.trim();\r\n            const password = form.querySelector('[name=\"password\"]').value.trim();\r\n\r\n            if (!username || !password) {\r\n                e.preventDefault();\r\n                showNotification('Пожалуйста, заполните все поля', 'error');\r\n            }\r\n        });\r\n    }\r\n});
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/prg/app/static/js/login.js b/prg/app/static/js/login.js
+--- a/prg/app/static/js/login.js	(revision 3d43cb7d816c26a063bf3ea9df380fb0a0e37886)
++++ b/prg/app/static/js/login.js	(date 1745075076755)
+@@ -2,8 +2,32 @@
+     document.body.classList.add('fade-in');
+ 
+     const form = document.querySelector('.auth-form');
++    const usernameInput = form.querySelector('[name="username"]');
++    const passwordInput = form.querySelector('[name="password"]');
++    const errorContainer = document.querySelector('.error-container');
+     const notificationContainer = document.querySelector('.notification-container');
+ 
++    function createErrorElement(message) {
++        const error = document.createElement('div');
++        error.className = 'field-error';
++        error.innerHTML = `
++            ${message}
++            <div class="progress-bar"></div>
++        `;
++        return error;
++    }
++
++    function showError(message) {
++        errorContainer.innerHTML = '';
++        const error = createErrorElement(message);
++        errorContainer.appendChild(error);
++
++        setTimeout(() => {
++            error.style.animation = 'slideOut 0.3s forwards';
++            setTimeout(() => error.remove(), 300);
++        }, 3000);
++    }
++
+     function showNotification(message, type) {
+         const notification = document.createElement('div');
+         notification.className = `notification ${type}`;
+@@ -11,7 +35,6 @@
+             ${message}
+             <div class="progress-bar"></div>
+         `;
+-
+         notificationContainer.appendChild(notification);
+ 
+         setTimeout(() => {
+@@ -20,15 +43,45 @@
+         }, 3000);
+     }
+ 
+-    if (form) {
+-        form.addEventListener('submit', function(e) {
+-            const username = form.querySelector('[name="username"]').value.trim();
+-            const password = form.querySelector('[name="password"]').value.trim();
++    function validateField(input, fieldName) {
++        if (!input.value.trim()) {
++            showError(`Пожалуйста, заполните поле "${fieldName}"`);
++            input.focus();
++            return false;
++        }
++        return true;
++    }
++
++    form.setAttribute('novalidate', true);
++
++    form.addEventListener('submit', function(e) {
++        const isUsernameValid = validateField(usernameInput, 'Логин');
++        const isPasswordValid = validateField(passwordInput, 'Пароль');
+ 
+-            if (!username || !password) {
+-                e.preventDefault();
+-                showNotification('Пожалуйста, заполните все поля', 'error');
++        if (!isUsernameValid || !isPasswordValid) {
++            e.preventDefault();
++        } else {
++            showNotification('Вход выполняется...', 'success');
++        }
++    });
++
++    const passwordToggle = document.querySelector('.password-toggle');
++    if (passwordToggle) {
++        passwordToggle.addEventListener('click', function() {
++            const eyeIcon = this.querySelector('.eye-icon');
++            if (passwordInput.type === 'password') {
++                passwordInput.type = 'text';
++                eyeIcon.innerHTML = '<path d="M12 9a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m0-2a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5zm0 6a1 1 0 0 0-1 1 1 1 0 0 0 1 1 1 1 0 0 0 1-1 1 1 0 0 0-1-1z"/>';
++            } else {
++                passwordInput.type = 'password';
++                eyeIcon.innerHTML = '<path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5z"/>';
+             }
+         });
+     }
++
++    [usernameInput, passwordInput].forEach(input => {
++        input.addEventListener('input', function() {
++            this.style.borderColor = this.value.trim() ? '#ddd' : '#ff4444';
++        });
++    });
+ });
+\ No newline at end of file
