@@ -3,7 +3,7 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Profile, Service
+from .models import Profile, Service, Feedback
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
@@ -128,3 +128,35 @@ def create_service(request):
         return redirect('home')
     return render(request, 'create_service.html')
 
+
+@login_required
+def service_detail(request, service_id):
+    service = get_object_or_404(Service, pk=service_id)
+    user_profile = request.user.profile  # Get the user's profile
+    is_customer = user_profile.role == 'customer'
+    feedback_submitted = False  # Flag to check if feedback has been submitted
+
+    if request.method == 'POST':
+        if is_customer:
+            feedback_text = request.POST.get('feedback_text')
+            if feedback_text:
+                Feedback.objects.create(service=service, author=request.user, text=feedback_text)
+                messages.success(request, 'Отзыв успешно отправлен!')
+                feedback_submitted = True #Set flag true after successfully submitting the feedback
+                return redirect('service_detail', service_id=service_id) # Redirect to prevent resubmission on refresh
+
+    return render(request, 'service_detail.html', {
+        'service': service,
+        'is_customer': is_customer,
+        'feedback_submitted': feedback_submitted # Pass flag to the template
+    })
+
+
+@login_required
+def my_feedbacks(request):
+    if request.user.profile.role == 'executor':
+        feedbacks = Feedback.objects.filter(service__author=request.user)  # Get feedbacks for services created by the executor
+        return render(request, 'my_feedbacks.html', {'feedbacks': feedbacks})
+    else:
+        messages.error(request, "У вас нет прав для просмотра этой страницы.")
+        return redirect('home')
