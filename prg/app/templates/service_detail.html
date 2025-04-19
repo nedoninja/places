@@ -1,4 +1,8 @@
+
 <h1>{{ service.title }}</h1>
+<p>{{ service.description }}</p>
+<p>Price: {{ service.price }}</p>
+
 <img src="{{ service.image.url }}" alt="{{ service.title }}" width="400">
 <p>Цена: {{ service.price }} руб.</p>
 <p>Описание: {{ service.description }}</p>
@@ -7,5 +11,25 @@
 <p>Имя: {{ service.author.get_full_name }}</p>
 <p>Email: {{ service.author.email }}</p>
 <p>Телефон: {{ service.author.profile.phone }}</p>
+
+
+{% if is_customer %}
+    {% if not feedback_submitted %}
+        <form method="post">
+            {% csrf_token %}
+            <textarea name="feedback_text" rows="4" cols="50" required></textarea><br>
+            <button type="submit">Оставить отзыв</button>
+        </form>
+    {% else %}
+        <p>Вы уже оставили отзыв для этого сервиса.</p>
+    {% endif %}
+{% endif %}
+
+<h2>Отзывы:</h2>
+{% for feedback in service.feedbacks.all %}
+    <p><strong>{{ feedback.author.username }}:</strong> {{ feedback.text }} ({{ feedback.created_at }})</p>
+{% empty %}
+    <p>Пока нет отзывов.</p>
+{% endfor %}
 
 <a href="/">На главную</a>
