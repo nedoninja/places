@@ -5,3 +5,17 @@
 {% else %}
     <p><a href="/login/">Логин</a> or <a href="/register/">регистрация</a></p>
 {% endif %}
+<h1>Услуги</h1>
+{% if user.is_authenticated and user.profile.role == 'executor' %}
+    <p><a href="/create-service/">Создать услугу</a></p>
+{% endif %}
+
+{% for service in services %}
+<div>
+    <a href="/service/{{ service.id }}/">
+        <img src="{{ service.image.url }}" alt="{{ service.title }}" width="200">
+        <h3>{{ service.title }}</h3>
+        <p>Цена: {{ service.price }} руб.</p>
+    </a>
+</div>
+{% endfor %}
