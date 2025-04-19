@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const header = document.querySelector('.profile-header');
     window.addEventListener('scroll', function() {
         const scrollPosition = window.pageYOffset;
-        header.style.backgroundPositionY = `${scrollPosition * 0.5}px`;
+        header.style.boxShadow = `0 ${2 + scrollPosition * 0.05}px ${10 + scrollPosition * 0.1}px rgba(0, 0, 0, ${0.1 + scrollPosition * 0.001})`;
     });
 });
 
