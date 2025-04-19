@@ -63,8 +63,44 @@
                         <input type="text" name="city" placeholder="Город" required>
                     </div>
                     
-                    <div class="form-group">
-                        <input type="date" name="birth_date" placeholder="Дата рождения" required>
+                    <div class="form-group date-input-group">
+                        <input type="text" name="birth_date" placeholder="Дата рождения (дд.мм.гггг)" required readonly>
+                        <div class="calendar-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6e8efb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </div>
+                        <div class="custom-datepicker">
+                            <div class="datepicker-header">
+                                <button class="prev-year">&lt;&lt;</button>
+                                <button class="prev-month">&lt;</button>
+                                <div class="current-month-year">Июнь 2023</div>
+                                <button class="next-month">&gt;</button>
+                                <button class="next-year">&gt;&gt;</button>
+                            </div>
+                            <div class="datepicker-years">
+                            </div>
+                            <div class="datepicker-days">
+                                <div class="day-names">
+                                    <div>Пн</div>
+                                    <div>Вт</div>
+                                    <div>Ср</div>
+                                    <div>Чт</div>
+                                    <div>Пт</div>
+                                    <div>Сб</div>
+                                    <div>Вс</div>
+                                </div>
+                                <div class="days-grid">
+                                </div>
+                            </div>
+                            <div class="datepicker-footer">
+                                <button class="today-btn">Сегодня</button>
+                                <button class="clear-btn">Очистить</button>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="form-group">
