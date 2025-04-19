@@ -1,6 +1,20 @@
 document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.add('fade-in');
 
+    function showError(message) {
+        const errorContainer = document.querySelector('.error-container');
+        errorContainer.innerHTML = '';
+        const error = document.createElement('div');
+        error.className = 'field-error';
+        error.innerHTML = `${message}<div class="progress-bar"></div>`;
+        errorContainer.appendChild(error);
+
+        setTimeout(() => {
+            error.style.animation = 'slideOut 0.3s forwards';
+            setTimeout(() => error.remove(), 300);
+        }, 3000);
+    }
+
     function initDatePicker() {
         const dateInput = document.querySelector('[name="birth_date"]');
         const calendarIcon = document.querySelector('.calendar-icon');
@@ -11,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const nextMonthBtn = document.querySelector('.next-month');
         const prevYearBtn = document.querySelector('.prev-year');
         const nextYearBtn = document.querySelector('.next-year');
-        const todayBtn = document.querySelector('.today-btn');
         const clearBtn = document.querySelector('.clear-btn');
         const yearsContainer = document.querySelector('.datepicker-years');
 
@@ -19,6 +32,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let selectedDate = null;
         const minYear = 1950;
         const maxYear = 2024;
+
+        dateInput.type = 'text';
+        dateInput.placeholder = 'дд.мм.гггг';
 
         function formatDate(date) {
             if (!date) return '';
@@ -28,32 +44,30 @@ document.addEventListener('DOMContentLoaded', function() {
             return `${day}.${month}.${year}`;
         }
 
-        function parseDate(dateStr, showErrors = true) {
+        function parseDate(dateStr) {
             if (!dateStr) return null;
-            const parts = dateStr.split('.');
-            if (parts.length !== 3) {
-                if (showErrors) showError('Введите дату в формате дд.мм.гггг');
+
+            if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) {
                 return null;
             }
 
+            const parts = dateStr.split('.');
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10) - 1;
             const year = parseInt(parts[2], 10);
 
-            if (year < minYear || year > maxYear) {
-                if (showErrors) showError(`Год должен быть между ${minYear} и ${maxYear}`);
+            if (year < minYear || year > maxYear) return null;
+
+            const date = new Date(year, month, day);
+
+            if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
                 return null;
             }
 
-            const date = new Date(year, month, day);
-            if (isNaN(date.getTime())) {
-                if (showErrors) showError('Введите корректную дату');
-                return null;
-            }
             return date;
         }
 
-        function updateCalendar(suppressErrors = false) {
+        function updateCalendar() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
@@ -63,26 +77,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
             daysGrid.innerHTML = '';
 
+            ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(day => {
+                const dayElement = document.createElement('div');
+                dayElement.textContent = day;
+                dayElement.style.fontWeight = 'bold';
+                daysGrid.appendChild(dayElement);
+            });
+
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const firstDayOfWeek = (firstDay.getDay() + 6) % 7;
 
             for (let i = 0; i < firstDayOfWeek; i++) {
-                const emptyDay = document.createElement('div');
-                emptyDay.classList.add('day', 'other-month');
-                daysGrid.appendChild(emptyDay);
+                daysGrid.appendChild(document.createElement('div')).className = 'day other-month';
             }
 
             for (let day = 1; day <= lastDay.getDate(); day++) {
                 const date = new Date(year, month, day);
                 const dayElement = document.createElement('div');
-                dayElement.classList.add('day');
+                dayElement.className = 'day';
                 dayElement.textContent = day;
 
-                if (selectedDate &&
-                    selectedDate.getDate() === day &&
-                    selectedDate.getMonth() === month &&
-                    selectedDate.getFullYear() === year) {
+                if (selectedDate && selectedDate.getDate() === day &&
+                    selectedDate.getMonth() === month && selectedDate.getFullYear() === year) {
                     dayElement.classList.add('selected');
                 }
 
@@ -92,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     dayElement.addEventListener('click', () => {
                         selectedDate = date;
                         dateInput.value = formatDate(selectedDate);
-                        updateCalendar(true);
+                        updateCalendar();
                         datepicker.classList.remove('active');
                     });
                 }
@@ -100,13 +117,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 daysGrid.appendChild(dayElement);
             }
 
-            const totalCells = firstDayOfWeek + lastDay.getDate();
-            const remainingCells = 7 - (totalCells % 7);
+            const totalDays = firstDayOfWeek + lastDay.getDate();
+            const remainingCells = 7 - (totalDays % 7);
             if (remainingCells < 7) {
                 for (let i = 1; i <= remainingCells; i++) {
-                    const emptyDay = document.createElement('div');
-                    emptyDay.classList.add('day', 'other-month');
-                    daysGrid.appendChild(emptyDay);
+                    daysGrid.appendChild(document.createElement('div')).className = 'day other-month';
                 }
             }
         }
@@ -116,39 +131,43 @@ document.addEventListener('DOMContentLoaded', function() {
             for (let year = maxYear; year >= minYear; year--) {
                 const yearElement = document.createElement('div');
                 yearElement.textContent = year;
-
-                if (currentDate.getFullYear() === year) {
-                    yearElement.classList.add('selected');
-                }
+                if (currentDate.getFullYear() === year) yearElement.className = 'selected';
 
                 yearElement.addEventListener('click', () => {
                     currentDate.setFullYear(year);
                     yearsContainer.classList.remove('active');
-                    updateCalendar(true);
+                    updateCalendar();
                 });
 
                 yearsContainer.appendChild(yearElement);
             }
         }
 
-        function ensureDatepickerVisible() {
-            const rect = datepicker.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
+        function handleManualInput() {
+            const value = dateInput.value.trim();
+            if (!value) {
+                selectedDate = null;
+                return;
+            }
 
-            if (rect.bottom > viewportHeight) {
-                datepicker.style.bottom = 'auto';
-                datepicker.style.top = 'calc(100% + 5px)';
+            const date = parseDate(value);
+            if (date) {
+                selectedDate = date;
+                currentDate = new Date(date);
+                updateCalendar();
             } else {
-                datepicker.style.bottom = 'calc(100% + 5px)';
-                datepicker.style.top = 'auto';
+                showError('Введите дату в формате дд.мм.гггг (1950-2024)');
+                dateInput.value = '';
+                selectedDate = null;
             }
         }
 
         function init() {
             if (dateInput.value) {
-                selectedDate = parseDate(dateInput.value, false);
-                if (selectedDate) {
-                    currentDate = new Date(selectedDate);
+                const date = parseDate(dateInput.value);
+                if (date) {
+                    selectedDate = date;
+                    currentDate = new Date(date);
                 }
             }
 
@@ -159,27 +178,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.stopPropagation();
                 datepicker.classList.toggle('active');
                 yearsContainer.classList.remove('active');
-
-                if (datepicker.classList.contains('active')) {
-                    ensureDatepickerVisible();
-                }
             });
 
             prevMonthBtn.addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() - 1);
-                updateCalendar(true);
+                updateCalendar();
             });
 
             nextMonthBtn.addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() + 1);
-                updateCalendar(true);
+                updateCalendar();
             });
 
             prevYearBtn.addEventListener('click', () => {
                 const newYear = currentDate.getFullYear() - 1;
                 if (newYear >= minYear) {
                     currentDate.setFullYear(newYear);
-                    updateCalendar(true);
+                    updateCalendar();
                 }
             });
 
@@ -187,30 +202,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newYear = currentDate.getFullYear() + 1;
                 if (newYear <= maxYear) {
                     currentDate.setFullYear(newYear);
-                    updateCalendar(true);
+                    updateCalendar();
                 }
             });
 
             currentMonthYear.addEventListener('click', () => {
                 yearsContainer.classList.toggle('active');
-                if (yearsContainer.classList.contains('active')) {
-                    ensureDatepickerVisible();
-                }
-            });
-
-            todayBtn.addEventListener('click', () => {
-                const today = new Date();
-                if (today.getFullYear() > maxYear) {
-                    currentDate = new Date(maxYear, today.getMonth(), today.getDate());
-                } else if (today.getFullYear() < minYear) {
-                    currentDate = new Date(minYear, today.getMonth(), today.getDate());
-                } else {
-                    currentDate = new Date();
-                }
-                selectedDate = new Date(currentDate);
-                dateInput.value = formatDate(selectedDate);
-                updateCalendar(true);
-                datepicker.classList.remove('active');
             });
 
             clearBtn.addEventListener('click', () => {
@@ -220,22 +217,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             document.addEventListener('click', (e) => {
-                if (!datepicker.contains(e.target) && e.target !== calendarIcon && !calendarIcon.contains(e.target)) {
+                if (!datepicker.contains(e.target) && e.target !== calendarIcon) {
                     datepicker.classList.remove('active');
                     yearsContainer.classList.remove('active');
                 }
             });
 
-            dateInput.addEventListener('change', () => {
-                if (dateInput.value) {
-                    const date = parseDate(dateInput.value, true);
-                    if (date) {
-                        selectedDate = date;
-                        currentDate = new Date(date);
-                        updateCalendar(true);
-                    } else {
-                        dateInput.value = '';
-                    }
+            dateInput.addEventListener('blur', handleManualInput);
+            dateInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleManualInput();
                 }
             });
         }
@@ -246,139 +237,59 @@ document.addEventListener('DOMContentLoaded', function() {
     initDatePicker();
 
     const form = document.querySelector('.auth-form');
-    const errorContainer = document.querySelector('.error-container');
 
-    function showError(message) {
-        while (errorContainer.firstChild) {
-            errorContainer.removeChild(errorContainer.firstChild);
+    function validateForm() {
+        let isValid = true;
+
+        const email = form.querySelector('[name="email"]').value.trim();
+        if (!email) {
+            showError('Введите email');
+            isValid = false;
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showError('Введите корректный email');
+            isValid = false;
         }
 
-        const error = document.createElement('div');
-        error.className = 'field-error';
-        error.innerHTML = `
-            <div class="error-message">${message}</div>
-            <div class="progress-bar"></div>
-        `;
-        errorContainer.appendChild(error);
+        const birthDate = form.querySelector('[name="birth_date"]').value.trim();
+        if (!birthDate) {
+            showError('Введите дату рождения');
+            isValid = false;
+        } else {
+            const date = parseDate(birthDate);
+            if (!date) {
+                showError('Дата рождения должна быть в формате дд.мм.гггг (1950-2024)');
+                isValid = false;
+            }
+        }
 
-        setTimeout(() => {
-            error.style.animation = 'slideOut 0.3s forwards';
-            setTimeout(() => error.remove(), 300);
-        }, 3000);
-    }
-
-    function validateEmail(email) {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-    }
-
-    function validatePhone(phone) {
-        return /^\+?[0-9\s\-\(\)]{10,}$/.test(phone);
-    }
-
-    function validatePassword(password) {
-        return password.length >= 8;
-    }
-
-    function validatePasswordMatch(password, confirmPassword) {
-        return password === confirmPassword;
-    }
-
-    function getFieldName(input) {
-        const nameMap = {
-            'last_name': 'Фамилия',
-            'first_name': 'Имя',
-            'username': 'Логин',
-            'email': 'Email',
-            'password': 'Пароль',
-            'password_confirm': 'Подтверждение пароля',
-            'phone': 'Номер телефона',
-            'city': 'Город',
-            'birth_date': 'Дата рождения',
-            'role': 'Роль'
-        };
-
-        return nameMap[input.name] || input.placeholder || input.name;
+        return isValid;
     }
 
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-
-            const formData = {
-                email: form.querySelector('[name="email"]').value.trim(),
-                phone: form.querySelector('[name="phone"]').value.trim(),
-                password: form.querySelector('[name="password"]').value.trim(),
-                passwordConfirm: form.querySelector('[name="password_confirm"]').value.trim(),
-                birthDate: form.querySelector('[name="birth_date"]').value.trim()
-            };
-
-            let isValid = true;
-            form.querySelectorAll('[required]').forEach(input => {
-                if (!input.value.trim()) {
-                    showError(`Пожалуйста, заполните поле "${getFieldName(input)}"`);
-                    input.focus();
-                    isValid = false;
-                    return;
-                }
-            });
-
-            if (!isValid) return;
-
-            if (!validateEmail(formData.email)) {
-                showError('Пожалуйста, введите корректный email (например, user@example.com)');
-                form.querySelector('[name="email"]').focus();
-                return;
+            if (validateForm()) {
+                form.submit();
             }
-
-            if (!validatePhone(formData.phone)) {
-                showError('Пожалуйста, введите корректный номер телефона (начинается с +, например +79123456789)');
-                form.querySelector('[name="phone"]').focus();
-                return;
-            }
-
-            if (!validatePassword(formData.password)) {
-                showError('Пароль должен содержать минимум 8 символов');
-                form.querySelector('[name="password"]').focus();
-                return;
-            }
-
-            if (!validatePasswordMatch(formData.password, formData.passwordConfirm)) {
-                showError('Пароли не совпадают');
-                form.querySelector('[name="password_confirm"]').focus();
-                return;
-            }
-
-            if (formData.birthDate) {
-                const date = parseDate(formData.birthDate, true);
-                if (!date || date.getFullYear() < 1950 || date.getFullYear() > 2024) {
-                    showError(`Год рождения должен быть между 1950 и 2024`);
-                    form.querySelector('[name="birth_date"]').focus();
-                    return;
-                }
-            }
-
-            form.submit();
         });
     }
 
-    window.parseDate = function(dateStr, showErrors = true) {
+    function parseDate(dateStr) {
         if (!dateStr) return null;
-        const parts = dateStr.split('.');
-        if (parts.length !== 3) {
-            if (showErrors) showError('Введите дату в формате дд.мм.гггг');
-            return null;
-        }
+        if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) return null;
 
+        const parts = dateStr.split('.');
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
         const year = parseInt(parts[2], 10);
 
+        if (year < 1950 || year > 2024) return null;
+
         const date = new Date(year, month, day);
-        if (isNaN(date.getTime())) {
-            if (showErrors) showError('Введите корректную дату');
+        if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
             return null;
         }
+
         return date;
-    };
+    }
 });
