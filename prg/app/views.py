@@ -32,12 +32,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.http import HttpResponse
 from .models import Profile
-
-
-
-# В начале views.py добавьте:
 from decimal import Decimal, InvalidOperation
-
 
 
 def is_executor(user):
