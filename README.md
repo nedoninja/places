@@ -105,3 +105,6 @@
 2. Настроить базу данных в settings.py
 3. Выполнить миграции: `python manage.py migrate`
 4. Запустить сервер: `python manage.py runserver`
+
+!ТЕСТОВАЯ ССЫЛКА (там НЕ весь проект): https://places-production-7116.up.railway.app/
+!
