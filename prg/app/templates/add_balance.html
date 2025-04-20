@@ -1,11 +1,28 @@
-{% block content %}
-<h2>Пополнение баланса</h2>
-<form method="post">
-    {% csrf_token %}
-    <div class="form-group">
-        <label>Сумма пополнения (руб):</label>
-        <input type="number" name="amount" min="1" required step="0.01">
-    </div>
-    <button type="submit" class="btn">Пополнить</button>
-</form>
-{% endblock %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пополнение баланса</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+    <header class="profile-header">
+        <img src="{% static 'images/logotype.svg' %}" alt="Study Size" class="logo">
+        <div class="header-actions">
+            <a href="/" class="home-link">На главную</a>
+            <a href="/logout/" class="logout-btn">Выйти</a>
+        </div>
+    </header>
+    <h2>Пополнение баланса</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Сумма пополнения (руб):</label>
+            <input type="number" name="amount" min="1" required step="0.01">
+        </div>
+        <button type="submit" class="btn">Пополнить</button>
+    </form>
+</body>
+</html>
