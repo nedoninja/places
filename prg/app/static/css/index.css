@@ -1,6 +1,6 @@
 :root {
     --primary: #7E57C2;
-    --secondary: #4CAF50;
+    --secondary: #7E57C2;
     --text: #333333;
     --light-gray: #F5F5F5;
     --border-color: #E0E0E0;
@@ -241,7 +241,7 @@ body {
 }
 
 .executor-phone {
-    color: #4CAF50;
+    color: #7E57C2;
 }
 
 .executor-info p {
@@ -296,7 +296,7 @@ body {
 .view-btn {
     display: inline-block;
     padding: 8px 16px;
-    background: #4CAF50;
+    background: #7E57C2;
     color: white;
     border-radius: 20px;
     text-decoration: none;
