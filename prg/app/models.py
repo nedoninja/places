@@ -83,3 +83,17 @@ class ServiceRequest(models.Model):
         if self.price <= 0:
             raise ValidationError("Цена должна быть положительной")
 
+
+class Chat(models.Model):
+    participants = models.ManyToManyField(User, related_name='chats')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.participants.count() != 2:
+            raise ValidationError("Чат должен иметь ровно 2 участника")
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, related_name='messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)

@@ -39,6 +39,7 @@ from django.conf import settings
 def is_executor(user):
     return user.profile.role == 'executor'
 
+@login_required
 def register(request):
     if request.method == 'POST':
         try:
@@ -85,27 +86,28 @@ def register(request):
             })
 
         try:
-            user = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-                first_name=first_name,
-                last_name=last_name
-            )
-            user.is_active = False
-            user.save()
-
-            Profile.objects.create(
-                user=user,
-                middle_name=middle_name,
-                phone=phone,
-                city=city,
-                birth_date=birth_date,
-                role=role
-            )
-
             with transaction.atomic():
-                wallet = Wallet.objects.create(user=user, balance=0)
+                user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name
+                )
+                user.is_active = False
+                user.save()
+
+                Profile.objects.create(
+                    user=user,
+                    middle_name=middle_name,
+                    phone=phone,
+                    city=city,
+                    birth_date=birth_date,
+                    role=role
+                )
+
+                # Создаем кошелек с нулевым балансом
+                Wallet.objects.create(user=user, balance=0)
                 Transaction.objects.create(
                     user=user,
                     amount=0,
@@ -113,23 +115,23 @@ def register(request):
                     description="Активация кошелька"
                 )
 
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            activation_link = request.build_absolute_uri(
-                f"/activate/{uid}/{token}/"
-            )
+                # Отправка email подтверждения
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                activation_link = request.build_absolute_uri(
+                    f"/activate/{uid}/{token}/"
+                )
 
-            subject = 'Подтвердите вашу почту'
-            message = render_to_string('activation_email.html', {
-                'user': user,
-                'activation_link': activation_link,
-            })
-            send_mail(subject, message, None, [email], fail_silently=False)
+                subject = 'Подтвердите вашу почту'
+                message = render_to_string('activation_email.html', {
+                    'user': user,
+                    'activation_link': activation_link,
+                })
+                send_mail(subject, message, None, [email], fail_silently=False)
 
-            return redirect('check_mail')
+                return redirect('check_mail')
 
         except Exception as e:
-            #logger.exception("Ошибка при создании пользователя:")
             messages.error(request, f'Не удалось зарегистрировать: {e}')
             return render(request, 'register.html', {
                 'username': username,
@@ -415,38 +417,67 @@ def process_payment(request, service_id):
         messages.error(request, "Только заказчики могут оплачивать услуги")
         return redirect('service_detail', service_id=service_id)
 
-    with transaction.atomic():
-        customer_wallet = request.user.wallet
-        executor_wallet = service.author.wallet
+    # Получаем или создаем кошельки
+    customer_wallet, c_created = Wallet.objects.get_or_create(
+        user=request.user,
+        defaults={'balance': 0}
+    )
+    executor_wallet, e_created = Wallet.objects.get_or_create(
+        user=service.author,
+        defaults={'balance': 0}
+    )
 
-        if customer_wallet.balance < service.price:
-            messages.error(request, "Недостаточно средств на балансе")
-            return redirect('service_detail', service_id=service_id)
-
-        # Списание у заказчика
-        customer_wallet.balance -= service.price
-        customer_wallet.save()
-
+    if c_created:
         Transaction.objects.create(
             user=request.user,
-            amount=-service.price,
-            transaction_type='payment',
-            description=f"Оплата услуги '{service.title}'"
+            amount=0,
+            transaction_type='initial',
+            description="Автоматическое создание кошелька"
         )
+        messages.info(request, "Ваш кошелек был автоматически создан")
 
-        # Зачисление исполнителю
-        executor_wallet.balance += service.price
-        executor_wallet.save()
-
+    if e_created:
         Transaction.objects.create(
             user=service.author,
-            amount=service.price,
-            transaction_type='income',
-            description=f"Получение оплаты за услугу '{service.title}'"
+            amount=0,
+            transaction_type='initial',
+            description="Автоматическое создание кошелька"
         )
 
-    messages.success(request, "Оплата прошла успешно!")
-    return redirect('service_detail', service_id=service_id)
+    if customer_wallet.balance < service.price:
+        messages.error(request, "Недостаточно средств на балансе")
+        return redirect('service_detail', service_id=service_id)
+
+    try:
+        with transaction.atomic():
+            # Списание у заказчика
+            customer_wallet.balance -= service.price
+            customer_wallet.save()
+
+            Transaction.objects.create(
+                user=request.user,
+                amount=-service.price,
+                transaction_type='payment',
+                description=f"Оплата услуги '{service.title}'"
+            )
+
+            # Зачисление исполнителю
+            executor_wallet.balance += service.price
+            executor_wallet.save()
+
+            Transaction.objects.create(
+                user=service.author,
+                amount=service.price,
+                transaction_type='income',
+                description=f"Получение оплаты за услугу '{service.title}'"
+            )
+
+            messages.success(request, "Оплата прошла успешно!")
+            return redirect('service_detail', service_id=service_id)
+
+    except Exception as e:
+        messages.error(request, f"Ошибка при обработке платежа: {str(e)}")
+        return redirect('service_detail', service_id=service_id)
 
 
 # views.py
@@ -464,15 +495,37 @@ def request_service(request, service_id):
         messages.error(request, "Только заказчики могут запрашивать услуги")
         return redirect('service_detail', service_id=service_id)
 
-    if customer.wallet.balance < service.price:
+    # Получаем или создаем кошелек, если его нет
+    wallet, created = Wallet.objects.get_or_create(
+        user=customer,
+        defaults={'balance': 0}
+    )
+    
+    if created:
+        messages.info(request, "Кошелек был автоматически создан с балансом 0 ₽")
+        Transaction.objects.create(
+            user=customer,
+            amount=0,
+            transaction_type='initial',
+            description="Автоматическое создание кошелька"
+        )
+
+    if wallet.balance < service.price:
         messages.error(request, "Недостаточно средств на балансе")
         return redirect('service_detail', service_id=service_id)
 
     try:
         with transaction.atomic():
             # Резервируем средства
-            customer.wallet.balance -= service.price
-            customer.wallet.save()
+            wallet.balance -= service.price
+            wallet.save()
+
+            Transaction.objects.create(
+                user=customer,
+                amount=-service.price,
+                transaction_type='reservation',
+                description=f"Резервирование средств для услуги '{service.title}'"
+            )
 
             # Создаем запрос
             ServiceRequest.objects.create(
@@ -483,10 +536,11 @@ def request_service(request, service_id):
                 status='pending'
             )
 
+            messages.success(request, "Запрос на услугу успешно создан!")
             return redirect('order_submitted')
 
     except Exception as e:
-        messages.error(request, f"Ошибка: {str(e)}")
+        messages.error(request, f"Ошибка при создании запроса: {str(e)}")
         return redirect('service_detail', service_id=service_id)
 
 
