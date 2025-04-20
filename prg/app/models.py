@@ -21,7 +21,7 @@ class Service(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
     description = models.TextField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=100, decimal_places=2)
     image = models.ImageField(upload_to='services/')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -38,7 +38,7 @@ class Feedback(models.Model):
 # models.py
 class Wallet(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
-    balance = models.DecimalField(max_digits=99, decimal_places=2, default=0)
+    balance = models.DecimalField(max_digits=99999, decimal_places=2, default=0)
 
 
 class Transaction(models.Model):
@@ -49,7 +49,7 @@ class Transaction(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=100, decimal_places=2)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)
     description = models.TextField(blank=True)
@@ -83,16 +83,3 @@ class ServiceRequest(models.Model):
         if self.price <= 0:
             raise ValidationError("Цена должна быть положительной")
 
-class Chat(models.Model):
-    participants = models.ManyToManyField(User, related_name='chats')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def clean(self):
-        if self.participants.count() != 2:
-            raise ValidationError("Чат должен иметь ровно 2 участника")
-
-class Message(models.Model):
-    chat = models.ForeignKey(Chat, related_name='messages', on_delete=models.CASCADE)
-    sender = models.ForeignKey(User, on_delete=models.CASCADE)
-    text = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
