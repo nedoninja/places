@@ -38,7 +38,7 @@ class Feedback(models.Model):
 # models.py
 class Wallet(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
-    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    balance = models.DecimalField(max_digits=99, decimal_places=2, default=0)
 
 
 class Transaction(models.Model):
