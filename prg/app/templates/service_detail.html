@@ -46,7 +46,19 @@
     {% endif %}
     {% endif %}
 
-    <a href="/chat/" class="respond-button">Откликнуться</a>
+    {% if is_customer %}
+    <form method="post" action="{% url 'request_service' service.id %}">
+        {% csrf_token %}
+        <button type="submit" class="respond-button"
+                {% if request.user.wallet.balance
+        < service.price %}disabled{% endif %}>
+        Запросить услугу
+        </button>
+        {% if request.user.wallet.balance < service.price %}
+        <p class="balance-warning">Недостаточно средств на балансе</p>
+
+    </form>
+    {% endif %}
 
     <h2>Отзывы:</h2>
     <div class="feedback-list">

@@ -28,8 +28,8 @@ urlpatterns = [
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
 
     path('login/', views.user_login, name='login'),
-     path('accounts/login/', views.user_login, name='login'),
-    
+    path('accounts/login/', views.user_login, name='login'),
+
     path('logout/', views.user_logout, name='logout'),
     path('profile/', views.profile, name='profile'),
     path('create-service/', views.create_service, name='create_service'),
@@ -37,7 +37,14 @@ urlpatterns = [
     path('my_feedbacks/', views.my_feedbacks, name='my_feedbacks'),
     path('add-balance/', views.add_balance, name='add_balance'),
     path('service/<int:service_id>/pay/', views.process_payment, name='process_payment'),
-]
 
+    path('request-service/<int:service_id>/', views.request_service, name='request_service'),
+    path('manage-request/<int:request_id>/', views.update_request_status, name='manage_request'),
+    path('complete-payment/<int:request_id>/', views.complete_payment, name='complete_payment'),
+    path('requests/', views.user_requests, name='user_requests'),
+    path('order-submitted/', views.order_submitted, name='order_submitted'),
+    path('request/<int:request_id>/', views.view_request, name='view_request'),
+
+]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

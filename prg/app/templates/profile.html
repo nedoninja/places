@@ -75,6 +75,19 @@
                     <p>Нет операций</p>
                     {% endfor %}
                 </div>
+                <div class="requests-section">
+                    <h3>Мои запросы</h3>
+                    <a href="{% url 'user_requests' %}">Просмотреть все запросы</a>
+
+                    <div class="quick-requests">
+                        {% for req in user.customer_requests.all|slice:":3" %}
+                        <div class="request">
+                            <span>{{ req.service.title }}</span>
+                            <span class="status {{ req.status }}">{{ req.get_status_display }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
     </section>

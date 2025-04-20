@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -52,3 +53,33 @@ class Transaction(models.Model):
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)
     description = models.TextField(blank=True)
+
+
+# models.py
+class ServiceRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'На рассмотрении'),
+        ('in_progress', 'В работе'),
+        ('rejected', 'Отказано'),
+        ('completed', 'Сделано'),
+    ]
+
+    customer = models.ForeignKey(User, related_name='customer_requests', on_delete=models.CASCADE)
+    executor = models.ForeignKey(User, related_name='executor_requests', on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    result_file = models.FileField(upload_to='service_results/', null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_paid = models.BooleanField(default=False)
+
+    def clean(self):
+        if self.customer.profile.role != 'customer':
+            raise ValidationError("Заказчик должен иметь роль customer")
+
+        if self.executor.profile.role != 'executor':
+            raise ValidationError("Исполнитель должен иметь роль executor")
+
+        if self.price <= 0:
+            raise ValidationError("Цена должна быть положительной")
+

@@ -3,7 +3,10 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Profile, Service, Feedback, Transaction, Wallet
+# В начале файла views.py добавьте:
+from django.db.models import Q
+from . import models
+from .models import Profile, Service, Feedback, Transaction, Wallet, ServiceRequest
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import render, redirect, get_object_or_404
@@ -439,3 +442,128 @@ def process_payment(request, service_id):
 
     messages.success(request, "Оплата прошла успешно!")
     return redirect('service_detail', service_id=service_id)
+
+
+# views.py
+from decimal import Decimal
+from django.db import transaction
+
+
+# views.py
+@login_required
+def request_service(request, service_id):
+    service = get_object_or_404(Service, pk=service_id)
+    customer = request.user
+
+    if customer.profile.role != 'customer':
+        messages.error(request, "Только заказчики могут запрашивать услуги")
+        return redirect('service_detail', service_id=service_id)
+
+    if customer.wallet.balance < service.price:
+        messages.error(request, "Недостаточно средств на балансе")
+        return redirect('service_detail', service_id=service_id)
+
+    try:
+        with transaction.atomic():
+            # Резервируем средства
+            customer.wallet.balance -= service.price
+            customer.wallet.save()
+
+            # Создаем запрос
+            ServiceRequest.objects.create(
+                customer=customer,
+                executor=service.author,
+                service=service,
+                price=service.price,
+                status='pending'
+            )
+
+            return redirect('order_submitted')
+
+    except Exception as e:
+        messages.error(request, f"Ошибка: {str(e)}")
+        return redirect('service_detail', service_id=service_id)
+
+
+@login_required
+def update_request_status(request, request_id):
+    service_request = get_object_or_404(
+        ServiceRequest,
+        pk=request_id,
+        executor=request.user  # Проверка что запрос принадлежит исполнителю
+    )
+
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        result_file = request.FILES.get('result_file')
+
+        with transaction.atomic():
+            if new_status == 'in_progress':
+                service_request.status = 'in_progress'
+
+            elif new_status == 'rejected':
+                # Возврат средств заказчику
+                service_request.customer.wallet.balance += service_request.price
+                service_request.customer.wallet.save()
+                service_request.status = 'rejected'
+
+            elif new_status == 'completed':
+                service_request.status = 'completed'
+                if result_file:
+                    service_request.result_file = result_file
+
+            service_request.save()
+            messages.success(request, "Статус успешно обновлен")
+            return redirect('user_requests')
+
+    context = {
+        'request': service_request,
+    }
+    return render(request, 'update_request.html', context)
+
+@login_required
+def complete_payment(request, request_id):
+    service_request = get_object_or_404(ServiceRequest, pk=request_id, customer=request.user)
+
+    if service_request.status != 'completed' or service_request.is_paid:
+        messages.error(request, "Невозможно выполнить оплату")
+        return redirect('profile')
+
+    with transaction.atomic():
+        # Перевод средств исполнителю
+        service_request.executor.wallet.balance += service_request.price
+        service_request.executor.wallet.save()
+
+        service_request.is_paid = True
+        service_request.save()
+
+    messages.success(request, "Оплата успешно проведена")
+    return redirect('view_request', request_id=request_id)
+
+
+@login_required
+def user_requests(request):
+    # Получаем все запросы где пользователь является заказчиком или исполнителем
+    customer_requests = ServiceRequest.objects.filter(customer=request.user)
+    executor_requests = ServiceRequest.objects.filter(executor=request.user)
+
+    context = {
+        'customer_requests': customer_requests,
+        'executor_requests': executor_requests
+    }
+
+    return render(request, 'request_list.html', context)
+
+
+def order_submitted(request):
+    return render(request, 'order_submitted.html')
+
+
+@login_required
+def view_request(request, request_id):
+    service_request = get_object_or_404(
+        ServiceRequest,
+        Q(customer=request.user) | Q(executor=request.user),  # Используем Q из django.db.models
+        pk=request_id
+    )
+    return render(request, 'view_request.html', {'request': service_request})

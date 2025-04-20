@@ -1,0 +1,21 @@
+{% block content %}
+<div class="request-details">
+    <h2>{{ request.service.title }}</h2>
+    
+    <div class="request-info">
+        <p><strong>Статус:</strong> <span class="status-{{ request.status }}">{{ request.get_status_display }}</span></p>
+        <p><strong>Сумма:</strong> {{ request.price }} руб.</p>
+        <p><strong>Заказчик:</strong> {{ request.customer.get_full_name }}</p>
+        <p><strong>Исполнитель:</strong> {{ request.executor.get_full_name }}</p>
+        <p><strong>Дата создания:</strong> {{ request.created_at|date:"d.m.Y H:i" }}</p>
+        
+        {% if request.result_file %}
+            <p><strong>Результат:</strong> <a href="{{ request.result_file.url }}" download>Скачать файл</a></p>
+        {% endif %}
+    </div>
+
+    <div class="actions">
+        <a href="{% url 'user_requests' %}" class="btn">Назад к списку</a>
+    </div>
+</div>
+{% endblock %}

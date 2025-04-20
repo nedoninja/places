@@ -1,0 +1,42 @@
+{% block content %}
+<div class="request-management">
+    <h2>Управление заказом: {{ request.service.title }}</h2>
+    <div class="request-info">
+        <p>Заказчик: {{ request.customer.get_full_name }}</p>
+        <p>Текущий статус: {{ request.get_status_display }}</p>
+        <p>Сумма: {{ request.price }} руб.</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Изменить статус:</label>
+            <select name="status" class="status-select">
+                <option value="in_progress" {% if request.status == 'in_progress' %}selected{% endif %}>Принять в работу</option>
+                <option value="rejected" {% if request.status == 'rejected' %}selected{% endif %}>Отклонить</option>
+                <option value="completed" {% if request.status == 'completed' %}selected{% endif %}>Завершить</option>
+            </select>
+        </div>
+
+        <div class="form-group file-upload" id="file-upload-section" style="display: {% if request.status == 'completed' %}block{% else %}none{% endif %};">
+            <label>Результат работы:</label>
+            <input type="file" name="result_file" {% if request.status != 'completed' %}disabled{% endif %}>
+        </div>
+
+        <button type="submit" class="btn-save">Сохранить изменения</button>
+    </form>
+</div>
+
+<script>
+document.querySelector('.status-select').addEventListener('change', function() {
+    const fileSection = document.getElementById('file-upload-section');
+    if(this.value === 'completed') {
+        fileSection.style.display = 'block';
+        fileSection.querySelector('input').disabled = false;
+    } else {
+        fileSection.style.display = 'none';
+        fileSection.querySelector('input').disabled = true;
+    }
+});
+</script>
+{% endblock %}
