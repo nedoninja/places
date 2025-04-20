@@ -44,6 +44,9 @@ urlpatterns = [
     path('requests/', views.user_requests, name='user_requests'),
     path('order-submitted/', views.order_submitted, name='order_submitted'),
     path('request/<int:request_id>/', views.view_request, name='view_request'),
+    path('create-chat/<str:login1>/<str:login2>/', views.create_chat, name='create_chat'),
+    path('chats/', views.chat_list, name='chat_list'),
+    path('chats/<str:filename>', views.serve_chat_file, name='chat_file'),
 
 ]
 
