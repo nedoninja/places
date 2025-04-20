@@ -104,6 +104,15 @@ def register(request):
                 role=role
             )
 
+            with transaction.atomic():
+                wallet = Wallet.objects.create(user=user, balance=0)
+                Transaction.objects.create(
+                    user=user,
+                    amount=0,
+                    transaction_type='initial',
+                    description="Активация кошелька"
+                )
+
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             activation_link = request.build_absolute_uri(
