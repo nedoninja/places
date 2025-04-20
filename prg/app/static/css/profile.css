@@ -51,13 +51,13 @@ body {
     padding: 8px 16px;
     border-radius: 20px;
     transition: all 0.3s ease;
-    background: white;
+    background: blue;
     border: 1px solid var(--primary-color);
 }
 
 .home-link:hover, .logout-btn:hover {
     background: var(--primary-color);
-    color: white;
+    color: blue;
     transform: translateY(-2px);
 }
 
@@ -169,8 +169,7 @@ body {
 }
 
 .kanban-section {
-    margin-top: 20px;
-    margin-bottom: 20px;
+    margin-top: 40px;
 }
 
 @keyframes pulse {
@@ -200,10 +199,11 @@ body {
 .container {
     display: flex;
     width: 100%;
-    height: auto;
+    height: 80%;
     background-color: var(--card-bg);
     border-radius: 10px;
     overflow: hidden;
+    margin-top: 20px;
     box-shadow: var(--shadow);
 }
 
@@ -235,22 +235,6 @@ body {
 
 .card:active {
     cursor: grabbing;
-}
-
-/* Style for input fields in cards */
-.card input[type="text"],
-.card textarea {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 5px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-.card textarea {
-    resize: vertical;
-    height: 70px;
 }
 
 button {

@@ -42,19 +42,15 @@ body {
 }
 
 .home-link, .logout-btn {
-    color: var(--primary-color);
+    color: white;
     text-decoration: none;
     padding: 8px 16px;
     border-radius: 20px;
     transition: all 0.3s ease;
-    background: white;
-    border: 1px solid var(--primary-color);
 }
 
-.home-link:hover, .logout-btn:hover {
-    background: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
+.home-link {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .logout-btn {

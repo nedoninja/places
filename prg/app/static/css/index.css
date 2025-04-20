@@ -48,13 +48,13 @@ body {
     padding: 8px 16px;
     border-radius: 20px;
     transition: all 0.3s ease;
-    background: white;
+    background: blue;
     border: 1px solid var(--primary-color);
 }
 
 .home-link:hover, .logout-btn:hover {
     background: var(--primary-color);
-    color: white;
+    color: blue;
     transform: translateY(-2px);
 }
 
@@ -115,47 +115,4 @@ a:hover {
 
 .service p {
     color: #666;
-}
-
-/* Styles for the search bar */
-.search-section {
-    text-align: center;
-    padding: 20px;
-    background: var(--light-bg);
-}
-
-#search-input {
-    padding: 10px;
-    width: 70%;
-    max-width: 400px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    margin-right: 10px;
-}
-
-#search-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
-.search-section button {
-    padding: 10px 15px;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.search-section button:hover {
-    background-color: var(--secondary-color);
-}
-
-/* Style for the "no results" message */
-.no-results-message {
-    text-align: center;
-    padding: 20px;
-    font-style: italic;
-    color: #777;
 }

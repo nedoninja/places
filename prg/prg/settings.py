@@ -142,5 +142,3 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # По умолчанию новые пользователи неактивны, пока не подтвердят почту
 ACCOUNT_ACTIVATION_REQUIRED = True
-
-LOGIN_URL = 'login'
