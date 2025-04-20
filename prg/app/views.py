@@ -3,7 +3,7 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Profile, Service, Feedback
+from .models import Profile, Service, Feedback, Transaction, Wallet
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import render, redirect, get_object_or_404
@@ -29,6 +29,13 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.http import HttpResponse
 from .models import Profile
+
+
+
+# В начале views.py добавьте:
+from decimal import Decimal, InvalidOperation
+
+
 
 def is_executor(user):
     return user.profile.role == 'executor'
@@ -356,3 +363,79 @@ def my_feedbacks(request):
     else:
         messages.error(request, "У вас нет прав для просмотра этой страницы.")
         return redirect('home')
+
+
+from decimal import Decimal
+from django.db import transaction
+
+
+@login_required
+def add_balance(request):
+    if request.method == 'POST':
+        try:
+            amount = Decimal(request.POST.get('amount'))
+            if amount <= 0:
+                raise ValueError("Сумма должна быть положительной")
+
+            with transaction.atomic():
+                wallet, created = Wallet.objects.get_or_create(user=request.user)
+                wallet.balance += amount
+                wallet.save()
+
+                Transaction.objects.create(
+                    user=request.user,
+                    amount=amount,
+                    transaction_type='deposit',
+                    description=f"Пополнение баланса"
+                )
+
+            messages.success(request, f'Баланс пополнен на {amount} ₽')
+            return redirect('profile')
+
+        except (ValueError, InvalidOperation) as e:
+            messages.error(request, f'Ошибка: {str(e)}')
+
+    return render(request, 'add_balance.html')
+
+
+@login_required
+def process_payment(request, service_id):
+    service = get_object_or_404(Service, pk=service_id)
+    user_profile = request.user.profile
+
+    if user_profile.role != 'customer':
+        messages.error(request, "Только заказчики могут оплачивать услуги")
+        return redirect('service_detail', service_id=service_id)
+
+    with transaction.atomic():
+        customer_wallet = request.user.wallet
+        executor_wallet = service.author.wallet
+
+        if customer_wallet.balance < service.price:
+            messages.error(request, "Недостаточно средств на балансе")
+            return redirect('service_detail', service_id=service_id)
+
+        # Списание у заказчика
+        customer_wallet.balance -= service.price
+        customer_wallet.save()
+
+        Transaction.objects.create(
+            user=request.user,
+            amount=-service.price,
+            transaction_type='payment',
+            description=f"Оплата услуги '{service.title}'"
+        )
+
+        # Зачисление исполнителю
+        executor_wallet.balance += service.price
+        executor_wallet.save()
+
+        Transaction.objects.create(
+            user=service.author,
+            amount=service.price,
+            transaction_type='income',
+            description=f"Получение оплаты за услугу '{service.title}'"
+        )
+
+    messages.success(request, "Оплата прошла успешно!")
+    return redirect('service_detail', service_id=service_id)

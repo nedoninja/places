@@ -34,6 +34,8 @@ urlpatterns = [
     path('create-service/', views.create_service, name='create_service'),
     path('service/<int:service_id>/', views.service_detail, name='service_detail'),
     path('my_feedbacks/', views.my_feedbacks, name='my_feedbacks'),
+    path('add-balance/', views.add_balance, name='add_balance'),
+    path('service/<int:service_id>/pay/', views.process_payment, name='process_payment'),
 ]
 
 

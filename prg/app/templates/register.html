@@ -1,130 +1,37 @@
-{% load static %}
+{# templates/register.html #}
 
-<!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Регистрация</title>
-    <link rel="stylesheet" href="{% static 'css/register.css' %}">
-  </head>
-  <body>
-    <main class="reg">
-      <div class="div">
-        <form class="item" action="#" method="post">
-          <div class="item-2"></div>
-          <header class="item-3">
-            <h1 class="text-wrapper">Регистрация</h1>
-            <div class="item-4">
-              <p class="text-wrapper-2">Уже есть аккаунт?</p>
-              <a href="{% url 'login' %}" class="text-wrapper-3">Войти</a>
-            </div>
-          </header>
-          <div class="item-5">
-            <div class="item-6">
-              <label for="login" class="text-wrapper-4">Логин</label>
-              <div class="basic-inputs">
-                <input type="text" id="login" class="medium" placeholder="Введите логин" required />
-              </div>
-              <div class="item-7">
-                <label for="repeat-password" class="text-wrapper-5">Повторите пароль</label>
-                <div class="basic-inputs-2">
-                  <input
-                    type="password"
-                    id="repeat-password"
-                    class="medium-2"
-                    placeholder="Повторите пароль"
-                    required
-                  />
-                  <button type="button" aria-label="Показать пароль">
-                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20"
-                         height="20">
-                        <path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5z"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="item-6">
-              <label for="name" class="text-wrapper-4">Имя</label>
-              <div class="basic-inputs">
-                <input type="text" id="name" class="medium" placeholder="Введите имя" required />
-              </div>
-            </div>
-            <label for="birthdate" class="text-wrapper-6">Дата рождения</label>
-            <div class="item-6">
-              <label for="surname" class="text-wrapper-4">Фамилия</label>
-              <div class="basic-inputs">
-                <input type="text" id="surname" class="medium" placeholder="Введите фамилию" required />
-              </div>
-              <div class="input-groups">
-                <div class="icon">
-                  <img class="img" src="{% static 'img/image.svg' %}" alt="Календарь" />
-                </div>
-                <input type="date" id="birthdate" class="medium-3" value="2001-04-11" required />
-              </div>
-            </div>
-            <div class="item-6">
-              <label for="patronymic" class="text-wrapper-4">Отчество</label>
-              <div class="basic-inputs">
-                <input type="text" id="patronymic" class="medium" placeholder="Введите отчество" />
-              </div>
-            </div>
-            <div class="item-6">
-              <label for="password" class="text-wrapper-5">Пароль</label>
-              <div class="basic-inputs-2">
-                <input type="password" id="password" class="medium-2" placeholder="Введите пароль" required />
-                <button type="button" aria-label="Показать пароль">
-                  <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20"
-                       height="20">
-                      <path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5z"/>
-                  </svg>                
-                </button>
-              </div>
-            </div>
-            <div class="checkbox">
-              <input type="checkbox" id="privacy-policy" class="checkbox-2" required />
-              <label for="privacy-policy" class="default">
-                <span class="span">Нажимая кнопку вы соглашаетесь с нашей</span>
-                <span class="text-wrapper-7"> </span>
-                <a href="#" class="text-wrapper-8">политикой конфиденциальности</a>
-                <span class="text-wrapper-9"> </span>
-              </label>
-            </div>
-            <button type="submit" class="button">
-              <span class="medium-4">Зарегистрироваться</span>
-            </button>
-            <div class="item-8">
-              <label for="email" class="text-wrapper-4">Почта</label>
-              <div class="medium-wrapper">
-                <input type="email" id="email" class="medium" placeholder="Введите почту" required />
-              </div>
-            </div>
-            <div class="input-groups-2">
-              <select id="role" class="medium-5" required>
-                <option value="" disabled selected>Выберите вашу роль</option>
-                <option value="student">Студент</option>
-                <option value="teacher">Преподаватель</option>
-              </select>
-              <div class="down-wrapper">
-                <img class="img" src="{% static 'images/drop.svg' %}" alt="Выпадающий список" />
-              </div>
-            </div>
-            <label for="role" class="text-wrapper-10">Роль</label>
-          </div>
-        </form>
-        <div class="item-9">
-          <label for="city" class="text-wrapper-4">Город</label>
-          <div class="medium-wrapper">
-            <input type="text" id="city" class="medium" placeholder="Введите город проживания" required />
-          </div>
-        </div>
-        <div class="ellipse"></div>
-        <div class="element">
-          <img class="flash" src="{% static 'images/Flash.svg' %}" alt="Декоративное изображение" />
-        </div>
-        <img class="studyhub" src="{% static 'images/logotype.svg' %}" alt="StudyStore логотип" />
-      </div>
-    </main>
-  </body>
-</html>
+<h2>Регистрация</h2>
+
+{% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="last_name" placeholder="Фамилия" value="{{ last_name }}" required>
+    <input type="text" name="first_name" placeholder="Имя" value="{{ first_name }}" required>
+    <input type="text" name="middle_name" placeholder="Отчество" value="{{ middle_name }}">
+
+    <input type="text" name="username" placeholder="Логин" value="{{ username }}" required>
+    <input type="email" name="email" placeholder="Email" value="{{ email }}" required>
+    <input type="password" name="password" placeholder="Пароль" required>
+    <input type="password" name="password_confirm" placeholder="Повторите пароль" required>
+
+    <input type="tel" name="phone" placeholder="Номер телефона" value="{{ phone }}" required>
+    <input type="text" name="city" placeholder="Город" value="{{ city }}" required>
+    <input type="date" name="birth_date" value="{{ birth_date }}" required>
+
+    <select name="role" required>
+        <option value="" disabled {% if not role %}selected{% endif %}>Ваша роль</option>
+        <option value="customer" {% if role == 'customer' %}selected{% endif %}>Заказчик</option>
+        <option value="executor" {% if role == 'executor' %}selected{% endif %}>Исполнитель</option>
+    </select>
+
+    <button type="submit">Регистрация</button>
+</form>
+
+<p>Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>

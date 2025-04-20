@@ -32,3 +32,23 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"Feedback on {self.service.title} by {self.author.username}"
+
+
+# models.py
+class Wallet(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+
+class Transaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('deposit', 'Пополнение'),
+        ('payment', 'Оплата услуги'),
+        ('income', 'Получение средств'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True)
