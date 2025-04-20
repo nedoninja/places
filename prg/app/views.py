@@ -3,10 +3,9 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-# В начале файла views.py добавьте:
 from django.db.models import Q
 from . import models
-from .models import Profile, Service, Feedback, Transaction, Wallet, ServiceRequest
+from .models import Profile, Service, Feedback, Transaction, Wallet, ServiceRequest, Chat, Message
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import render, redirect, get_object_or_404
@@ -32,7 +31,9 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.http import HttpResponse
 from .models import Profile
+import os
 from decimal import Decimal, InvalidOperation
+from django.conf import settings
 
 
 def is_executor(user):
@@ -558,7 +559,52 @@ def order_submitted(request):
 def view_request(request, request_id):
     service_request = get_object_or_404(
         ServiceRequest,
-        Q(customer=request.user) | Q(executor=request.user),  # Используем Q из django.db.models
+        Q(customer=request.user) | Q(executor=request.user),  
         pk=request_id
     )
     return render(request, 'view_request.html', {'request': service_request})
+
+@login_required
+def create_chat(request, login1, login2):
+    users_sorted = sorted([login1, login2])
+    filename = f"chat_{users_sorted[0]}_{users_sorted[1]}.html"
+    template_path = os.path.join('chats', filename)
+    full_path = os.path.join(settings.BASE_DIR, 'app', 'templates', 'chats', filename)
+
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    
+
+    if not os.path.exists(full_path):
+        with open(full_path, 'w') as f:
+            f.write(f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Чат {login1} и {login2}</title>
+</head>
+<body>
+    <h1>Чат между {login1} и {login2}</h1>
+    <a href="/chats/">Назад к списку чатов</a>
+</body>
+</html>""")
+    
+    user1 = get_object_or_404(User, username=login1)
+    user2 = get_object_or_404(User, username=login2)
+    chat, created = Chat.objects.get_or_create()
+    chat.participants.add(user1, user2)
+    
+    return redirect('chat_list')
+
+@login_required
+def chat_list(request):
+    chats = Chat.objects.filter(participants=request.user)
+    return render(request, 'chats/list.html', {'chats': chats})
+
+def serve_chat_file(request, filename):
+    try:
+        user1, user2 = filename.replace('chat_', '').replace('.html', '').split('_')
+        if request.user.username not in [user1, user2]:
+            return redirect('chat_list')
+    except:
+        return redirect('chat_list')
+    
+    return render(request, f'chats/{filename}')
