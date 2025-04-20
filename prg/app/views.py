@@ -39,7 +39,7 @@ from django.conf import settings
 def is_executor(user):
     return user.profile.role == 'executor'
 
-@login_required
+
 def register(request):
     if request.method == 'POST':
         try:
@@ -86,53 +86,51 @@ def register(request):
             })
 
         try:
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                email=email,
+                first_name=first_name,
+                last_name=last_name
+            )
+            user.is_active = False
+            user.save()
+
+            Profile.objects.create(
+                user=user,
+                middle_name=middle_name,
+                phone=phone,
+                city=city,
+                birth_date=birth_date,
+                role=role
+            )
+
             with transaction.atomic():
-                user = User.objects.create_user(
-                    username=username,
-                    password=password,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name
-                )
-                user.is_active = False
-                user.save()
-
-                Profile.objects.create(
+                wallet = Wallet.objects.create(user=user, balance=0)
+                Transaction.objects.create(
                     user=user,
-                    middle_name=middle_name,
-                    phone=phone,
-                    city=city,
-                    birth_date=birth_date,
-                    role=role
+                    amount=0,
+                    transaction_type='initial',
+                    description="Активация кошелька"
                 )
 
-                # Создаем кошелек с нулевым балансом
-                with transaction.atomic():
-                    wallet = Wallet.objects.create(user=user, balance=0)
-                    Transaction.objects.create(
-                        user=user,
-                        amount=0,
-                        transaction_type='initial',
-                        description="Активация кошелька"
-                    )
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            activation_link = request.build_absolute_uri(
+                f"/activate/{uid}/{token}/"
+            )
 
-                # Отправка email подтверждения
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = default_token_generator.make_token(user)
-                activation_link = request.build_absolute_uri(
-                    f"/activate/{uid}/{token}/"
-                )
+            subject = 'Подтвердите вашу почту'
+            message = render_to_string('activation_email.html', {
+                'user': user,
+                'activation_link': activation_link,
+            })
+            send_mail(subject, message, None, [email], fail_silently=False)
 
-                subject = 'Подтвердите вашу почту'
-                message = render_to_string('activation_email.html', {
-                    'user': user,
-                    'activation_link': activation_link,
-                })
-                send_mail(subject, message, None, [email], fail_silently=False)
-
-                return redirect('check_mail')
+            return redirect('check_mail')
 
         except Exception as e:
+            #logger.exception("Ошибка при создании пользователя:")
             messages.error(request, f'Не удалось зарегистрировать: {e}')
             return render(request, 'register.html', {
                 'username': username,
