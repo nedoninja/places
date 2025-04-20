@@ -33,6 +33,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+
+
+    const logoutBtn = document.querySelector('.logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            window.location.href = '/logout/';
+        });
+    }
+
+    const loginBtn = document.querySelector('.login-btn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', function() {
+            window.location.href = '/login/';
+        });
+    }
+
     // Обработка кнопки "Создать услугу"
     const createBtn = document.querySelector('.create-btn');
     if (createBtn) {
