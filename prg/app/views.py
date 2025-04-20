@@ -107,13 +107,14 @@ def register(request):
                 )
 
                 # Создаем кошелек с нулевым балансом
-                Wallet.objects.create(user=user, balance=0)
-                Transaction.objects.create(
-                    user=user,
-                    amount=0,
-                    transaction_type='initial',
-                    description="Активация кошелька"
-                )
+                with transaction.atomic():
+                    wallet = Wallet.objects.create(user=user, balance=0)
+                    Transaction.objects.create(
+                        user=user,
+                        amount=0,
+                        transaction_type='initial',
+                        description="Активация кошелька"
+                    )
 
                 # Отправка email подтверждения
                 uid = urlsafe_base64_encode(force_bytes(user.pk))

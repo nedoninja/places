@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -38,7 +39,7 @@ class Feedback(models.Model):
 # models.py
 class Wallet(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
-    balance = models.DecimalField(max_digits=99999, decimal_places=2, default=0)
+    balance = models.DecimalField(max_digits=100, decimal_places=2, default=0)
 
 
 class Transaction(models.Model):
@@ -46,10 +47,15 @@ class Transaction(models.Model):
         ('deposit', 'Пополнение'),
         ('payment', 'Оплата услуги'),
         ('income', 'Получение средств'),
+        ('initial', 'Начальный баланс')  # Добавьте это
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=100, decimal_places=2)
+    amount = models.DecimalField(  # Исправлено mount → amount
+        max_digits=30,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)
     description = models.TextField(blank=True)
